@@ -94,7 +94,6 @@ interface ShopContextType {
   verifyAdminLogin: (password: string) => { success: boolean; message?: string };
   logoutAdmin: () => void;
   adminLogout: () => void;
-  resetAdminPinToDefault: () => void;
 
   // Toast / notification
   toastMessage: string | null;
