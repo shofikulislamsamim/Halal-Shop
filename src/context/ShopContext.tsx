@@ -111,6 +111,31 @@ const STORAGE_KEYS = {
   ADMIN_AUTH: 'halalshop_admin_auth_v1',
 };
 
+const safeStorageGet = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.error('Failed to read local storage', key, error);
+    return null;
+  }
+};
+
+const safeStorageSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.error('Failed to persist local storage', key, error);
+  }
+};
+
+const safeStorageRemove = (key: string): void => {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error('Failed to remove local storage', key, error);
+  }
+};
+
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Navigation State
   const [currentView, setCurrentView] = useState<AppView>('home');
@@ -127,7 +152,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Persistence State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    const saved = safeStorageGet(STORAGE_KEYS.PRODUCTS);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -135,7 +160,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+    const saved = safeStorageGet(STORAGE_KEYS.CATEGORIES);
     if (saved) {
       try {
         const parsed: Category[] = JSON.parse(saved);
@@ -170,15 +195,27 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CART);
+    const saved = safeStorageGet(STORAGE_KEYS.CART);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (item): item is CartItem =>
+              Boolean(item?.product?.id) &&
+              Number.isFinite(item?.quantity) &&
+              item.quantity > 0
+          );
+        }
+      } catch (e) {
+        console.error('Failed to parse cart from storage', e);
+      }
     }
     return [];
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
+    const saved = safeStorageGet(STORAGE_KEYS.ORDERS);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -186,7 +223,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [settings, setSettings] = useState<WebsiteSettings>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const saved = safeStorageGet(STORAGE_KEYS.SETTINGS);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -210,23 +247,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Save to LocalStorage on change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+    safeStorageSet(STORAGE_KEYS.CART, JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    safeStorageSet(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    safeStorageSet(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   }, [categories]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    safeStorageSet(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    safeStorageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }, [settings]);
 
   // Toast auto-clear
@@ -248,23 +285,29 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Cart operations
   const addToCart = (product: Product, quantity = 1) => {
-    if (product.stock <= 0) {
-      showToast('দুঃখিত, এই পণ্যটি স্টকে নেই!');
+    const currentProduct = products.find((p) => p.id === product.id) || product;
+    const requestedQuantity = Math.max(1, Math.floor(quantity));
+
+    if (!currentProduct.isActive || currentProduct.stock <= 0) {
+      showToast('দুঃখিত, এই পণ্যটি বর্তমানে স্টকে নেই।');
       return;
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      const existingIndex = prev.findIndex((item) => item.product.id === currentProduct.id);
       if (existingIndex > -1) {
         const updated = [...prev];
-        const newQty = Math.min(updated[existingIndex].quantity + quantity, product.stock);
-        updated[existingIndex] = { ...updated[existingIndex], quantity: newQty };
+        const newQty = Math.min(
+          updated[existingIndex].quantity + requestedQuantity,
+          currentProduct.stock
+        );
+        updated[existingIndex] = { product: currentProduct, quantity: newQty };
         return updated;
       }
-      return [...prev, { product, quantity: Math.min(quantity, product.stock) }];
+      return [...prev, { product: currentProduct, quantity: Math.min(requestedQuantity, currentProduct.stock) }];
     });
 
-    showToast(`"${product.nameBn}" কার্টে যোগ করা হয়েছে!`);
+    showToast(`"${currentProduct.nameBn}" কার্টে যোগ করা হয়েছে!`);
   };
 
   const buyNow = (product: Product, quantity = 1) => {
@@ -317,6 +360,49 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     total: number;
     orderNote?: string;
   }): Order => {
+    // Re-read the latest catalog state before accepting an order. The product
+    // objects carried by an old cart tab can otherwise contain stale prices/stock.
+    const latestProductsById = new Map(products.map((product) => [product.id, product]));
+    const normalizedItems: Order['items'] = [];
+    const requestedByProduct = new Map<string, number>();
+
+    for (const item of orderData.items) {
+      const latestProduct = latestProductsById.get(item.productId);
+      if (!latestProduct || !latestProduct.isActive) {
+        throw new Error(`পণ্যটি আর উপলব্ধ নেই: ${item.nameBn}`);
+      }
+
+      const quantity = Math.max(1, Math.floor(Number(item.quantity)));
+      const previousQuantity = requestedByProduct.get(item.productId) || 0;
+      const nextQuantity = previousQuantity + quantity;
+
+      if (nextQuantity > latestProduct.stock) {
+        throw new Error(`"${latestProduct.nameBn}" এর পর্যাপ্ত স্টক নেই।`);
+      }
+
+      requestedByProduct.set(item.productId, nextQuantity);
+      normalizedItems.push({
+        productId: latestProduct.id,
+        nameBn: latestProduct.nameBn,
+        price: latestProduct.price,
+        quantity,
+        total: latestProduct.price * quantity,
+        imageUrl: latestProduct.imageUrl,
+      });
+    }
+
+    if (normalizedItems.length === 0) {
+      throw new Error('অর্ডারে অন্তত একটি বৈধ পণ্য থাকতে হবে।');
+    }
+
+    const calculatedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0);
+    const normalizedDeliveryCharge = Math.max(0, Number(orderData.deliveryCharge) || 0);
+    const calculatedTotal = calculatedSubtotal + normalizedDeliveryCharge;
+
+    if (Math.abs(calculatedTotal - Number(orderData.total)) > 0.01) {
+      throw new Error('অর্ডারের মোট মূল্য পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+
     // Generate a readable, collision-resistant order ID.
     // Keep checking against existing orders so a duplicate ID is not created.
     const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -342,10 +428,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mobile: orderData.mobile,
       altMobile: orderData.altMobile,
       address: orderData.address,
-      items: orderData.items,
-      subtotal: orderData.subtotal,
-      deliveryCharge: orderData.deliveryCharge,
-      total: orderData.total,
+      items: normalizedItems,
+      subtotal: calculatedSubtotal,
+      deliveryCharge: normalizedDeliveryCharge,
+      total: calculatedTotal,
       paymentMethod: 'cash_on_delivery',
       status: 'pending',
       orderNote: orderData.orderNote,
@@ -357,9 +443,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Reduce product stock accordingly
     setProducts((prev) =>
       prev.map((prod) => {
-        const orderedItem = orderData.items.find((i) => i.productId === prod.id);
-        if (orderedItem) {
-          return { ...prod, stock: Math.max(0, prod.stock - orderedItem.quantity) };
+        const orderedQuantity = requestedByProduct.get(prod.id);
+        if (orderedQuantity) {
+          return { ...prod, stock: Math.max(0, prod.stock - orderedQuantity) };
         }
         return prod;
       })
@@ -634,7 +720,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (result.success) {
       setIsAdminAuthenticated(true);
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+      safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
       showToast('অ্যাডমিন লগইন সফল হয়েছে! স্বাগতম।');
       return true;
     }
@@ -647,7 +733,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+    safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
     showToast('অ্যাডমিন প্যানেল থেকে লগআউট করা হয়েছে');
     navigateTo('home');
   };
