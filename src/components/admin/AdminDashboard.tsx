@@ -916,13 +916,13 @@ export const AdminDashboard: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={settingsForm.adminPin || '1234'}
+                value={settingsForm.adminPin || ''}
                 onChange={(e) => setSettingsForm({ ...settingsForm, adminPin: e.target.value })}
                 className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 font-mono tracking-wider"
-                placeholder="যেমন: 1234"
+                placeholder="একটি শক্তিশালী পাসকোড দিন"
               />
               <p className="text-[11px] text-stone-500 mt-1">
-                এই পিন দিয়ে অ্যাডমিন প্যানেলে লগইন করবেন। (ডিফল্ট: 1234)
+                এই পাসকোড দিয়ে অ্যাডমিন প্যানেলে লগইন করবেন। পাসকোড ফাঁকা রাখলে অ্যাডমিন লগইন কাজ করবে না।
               </p>
             </div>
           </div>
@@ -1006,11 +1006,19 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex justify-between items-center pt-3 border-t">
               <button
-                onClick={() => window.print()}
-                className="bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                onClick={() => {
+                  if (!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)) {
+                    showToast('অর্ডার Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে');
+                    return;
+                  }
+                  window.print();
+                }}
+                disabled={!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)}
+                className="bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                title={['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status) ? 'ইনভয়েস প্রিন্ট/Save as PDF' : 'Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে'}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>ইনভয়েস প্রিন্ট</span>
+                <span>ইনভয়েস</span>
               </button>
 
               <button
