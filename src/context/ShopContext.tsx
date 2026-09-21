@@ -710,7 +710,6 @@ const logoutAdmin = () => {
         verifyAdminLogin,
         logoutAdmin,
         adminLogout: logoutAdmin,
-        resetAdminPinToDefault,
 
         toastMessage,
         showToast,
