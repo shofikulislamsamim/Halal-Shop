@@ -15,7 +15,6 @@ export interface StructuredAddress {
   houseFlat?: string;
   // Shared
   detailedAddress: string;
-  landmark?: string;
   formattedFullAddress: string;
 }
 
