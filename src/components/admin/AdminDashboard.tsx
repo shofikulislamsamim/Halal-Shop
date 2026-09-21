@@ -1030,11 +1030,6 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <strong>সম্পূর্ণ ঠিকানা:</strong> {viewingOrder.address.formattedFullAddress}
               </div>
-              {viewingOrder.address.landmark && (
-                <div className="text-amber-800 font-semibold">
-                  <strong>ল্যান্ডমার্ক:</strong> {viewingOrder.address.landmark}
-                </div>
-              )}
               {viewingOrder.orderNote && (
                 <div className="text-stone-600 italic">
                   <strong>নোট:</strong> "{viewingOrder.orderNote}"
