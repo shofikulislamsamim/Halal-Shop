@@ -95,11 +95,6 @@ export const OrderConfirmationView: React.FC = () => {
               <span className="font-semibold text-stone-500">সম্পূর্ণ ঠিকানা: </span>
               <span className="text-stone-900">{order.address.formattedFullAddress}</span>
             </div>
-            {order.address.landmark && (
-              <div className="bg-amber-50/80 p-2 rounded-lg border border-amber-200/80 text-amber-950 font-medium">
-                ল্যান্ডমার্ক / পরিচিত স্থান: {order.address.landmark}
-              </div>
-            )}
             {order.orderNote && (
               <div>
                 <span className="font-semibold text-stone-500">গ্রাহকের নোট: </span>
