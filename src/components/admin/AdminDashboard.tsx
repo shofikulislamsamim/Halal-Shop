@@ -42,7 +42,6 @@ export const AdminDashboard: React.FC = () => {
     adminLogin,
     adminLogout,
     verifyAdminLogin,
-    resetAdminPinToDefault,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -113,15 +112,6 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle Emergency Reset to Default PIN
-  const handleResetPin = () => {
-    resetAdminPinToDefault();
-    setPinInput('1234');
-    setLoginError('');
-    setFailedAttempts(0);
-    setLockoutSeconds(0);
-    setShowForgotHelp(false);
-  };
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -257,11 +247,6 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
-              {!loginError && !isLockedOut && (
-                <p className="text-[11px] text-stone-400 mt-2 text-center">
-                  ডিফল্ট পাসকোড: <span className="font-mono font-bold text-stone-700">1234</span> অথবা <span className="font-mono font-bold text-stone-700">admin123</span>
-                </p>
-              )}
             </div>
 
             <button
@@ -274,22 +259,6 @@ export const AdminDashboard: React.FC = () => {
               <span>{isLockedOut ? `লক রয়েছে (${lockoutSeconds}s)` : 'প্রবেশ করুন (Login)'}</span>
             </button>
           </form>
-
-          {/* Quick Demo Access */}
-          <div className="mt-5 pt-4 border-t border-stone-100">
-            <button
-              type="button"
-              disabled={isLockedOut}
-              onClick={() => {
-                setPinInput('1234');
-                adminLogin('1234');
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-stone-50 hover:bg-emerald-50 disabled:opacity-50 text-stone-700 hover:text-emerald-800 text-xs font-semibold rounded-xl border border-stone-200 hover:border-emerald-300 transition-all cursor-pointer"
-            >
-              <Key className="w-3.5 h-3.5 text-emerald-600" />
-              <span>এক ক্লিকে ডেমো লগইন (পিন: 1234)</span>
-            </button>
-          </div>
 
           {/* Forgot PIN / Emergency Reset Section */}
           <div className="mt-3">
