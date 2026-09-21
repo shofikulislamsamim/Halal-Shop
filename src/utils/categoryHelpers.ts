@@ -26,11 +26,12 @@ export function buildCategoryTree(
   level: number = 0,
   parentPath: Category[] = []
 ): CategoryTreeNode[] {
+  const visited = new Set<string>(parentPath.map((category) => category.id));
+
   const directChildren = categories
     .filter((c) => {
-      if (parentId === null) {
-        return !c.parentId;
-      }
+      if (visited.has(c.id)) return false;
+      if (parentId === null) return !c.parentId;
       return c.parentId === parentId;
     })
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -147,7 +148,7 @@ export function getFlattenedHierarchy(
   function traverse(nodes: CategoryTreeNode[]) {
     for (const node of nodes) {
       // Exclude the category itself and its entire subtree if excludeId is given (prevents circular move)
-      if (excludeId && node.id === excludeId) {
+      if (excludeId && (node.id === excludeId || node.path.some((p) => p.id === excludeId))) {
         continue;
       }
 
@@ -186,7 +187,7 @@ export function generateCategorySlug(
   let baseSlug = name
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // remove special chars
+    .replace(/[^\p{L}\p{N}\s-]/gu, '') // keep Bengali/English letters and numbers
     .replace(/[\s_-]+/g, '-') // collapse dashes
     .replace(/^-+|-+$/g, ''); // trim dashes
 
