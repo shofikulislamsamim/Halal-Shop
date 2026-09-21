@@ -1,0 +1,6 @@
+{
+  "name": "Halal Shop - বিশ্বস্ত পণ্য, সহজ কেনাকাটা",
+  "description": "A simple, mobile-first e-commerce store for Bangladesh featuring Cash on Delivery, smart adaptive address system, and WhatsApp integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

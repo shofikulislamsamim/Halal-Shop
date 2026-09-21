@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-bengali: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --color-halal-primary: #064E3B;
+  --color-halal-secondary: #065F46;
+  --color-halal-cream: #FEFCE8;
+  --color-halal-sand: #F7F6F0;
+  --color-halal-gold: #C8A951;
+  --color-halal-text: #17201B;
+  --color-halal-bg: #FAFAF7;
+}
+
+@layer base {
+  :root {
+    font-family: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    letter-spacing: 0.005em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  /* Bengali Heading Typography: Prevent vowel signs and matras from overlapping */
+  h1 {
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    line-height: 1.35;
+    letter-spacing: -0.005em;
+  }
+
+  h3, h4, h5, h6 {
+    line-height: 1.4;
+    letter-spacing: normal;
+  }
+
+  p {
+    line-height: 1.65;
+  }
+
+  /* Form controls and interactive elements */
+  button, input, select, textarea {
+    font-family: inherit;
+    line-height: inherit;
+  }
+}
+
+/* Numeric & Price formatting clarity */
+.price-display {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Bengali', sans-serif;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Safe area inset for mobile navigation */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
