@@ -194,7 +194,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...INITIAL_SETTINGS,
           ...parsed,
-          adminPin: String(parsed.adminPin || INITIAL_SETTINGS.adminPin || '1234').trim(),
+          adminPin: String(parsed.adminPin || INITIAL_SETTINGS.adminPin || '').trim(),
         };
       } catch (e) {
         console.error(e);
@@ -205,8 +205,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return (
-      sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true' ||
-      localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true'
+      sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true'
     );
   });
 
@@ -612,52 +611,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Verify Admin Login Credentials
   const verifyAdminLogin = (password: string): { success: boolean; message?: string } => {
     if (!password || !password.trim()) {
-      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড বা পিন প্রদান করুন।' };
+      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড প্রদান করুন।' };
     }
 
-    const cleaned = normalizeInput(password);
-    if (cleaned.length < 3) {
-      return { success: false, message: 'পাসকোডটি অন্তত ৩-৪ অক্ষরের হতে হবে (যেমন: 1234)।' };
+    const configuredPin = String(settings.adminPin || '').trim();
+    if (!configuredPin) {
+      return {
+        success: false,
+        message: 'অ্যাডমিন পাসকোড কনফিগার করা নেই। সেটিংস থেকে একটি পাসকোড নির্ধারণ করুন।',
+      };
     }
 
-    const currentConfigured = normalizeInput(String(settings.adminPin || '1234'));
-
-    // Master list of allowed admin keys:
-    // 1. Current configured pin in settings
-    // 2. Default PIN '1234'
-    // 3. Common recovery/developer credentials
-    const validCandidates = [
-      currentConfigured,
-      '1234',
-      'admin123',
-      'halal123',
-      'admin',
-      '123456',
-      '0000',
-    ];
-
-    const inputLower = cleaned.toLowerCase();
-    const inputNoSpaces = cleaned.replace(/\s+/g, '').toLowerCase();
-
-    const isMatch = validCandidates.some((candidate) => {
-      if (!candidate) return false;
-      const cNorm = candidate.toLowerCase();
-      const cNoSpaces = cNorm.replace(/\s+/g, '');
-      return (
-        inputLower === cNorm ||
-        inputNoSpaces === cNoSpaces ||
-        cleaned === candidate
-      );
-    });
-
-    if (isMatch) {
-      return { success: true };
+    if (password.trim() !== configuredPin) {
+      return { success: false, message: 'ভুল অ্যাডমিন পাসকোড।' };
     }
 
-    return {
-      success: false,
-      message: 'ভুল পাসকোড! সঠিক পিন দিন (ডিফল্ট পিন: 1234 অথবা admin123)।',
-    };
+    return { success: true };
   };
 
   // Admin Login Handler
@@ -666,28 +635,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (result.success) {
       setIsAdminAuthenticated(true);
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+      localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
       showToast('অ্যাডমিন লগইন সফল হয়েছে! স্বাগতম।');
       return true;
     }
+    showToast(result.message || 'অ্যাডমিন লগইন ব্যর্থ হয়েছে।');
     return false;
   };
 
-  // Reset Admin PIN to Default 1234 (emergency / recovery)
-  const resetAdminPinToDefault = () => {
-    setSettings((prev) => {
-      const updated: WebsiteSettings = { ...prev, adminPin: '1234' };
-      try {
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save reset settings:', e);
-      }
-      return updated;
-    });
-    showToast('অ্যাডমিন পিন সফলভাবে ডিফল্ট (1234)-এ রিসেট করা হয়েছে');
-  };
+  const adminLogin = loginAdmin;
 
-  const logoutAdmin = () => {
+const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
     localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
