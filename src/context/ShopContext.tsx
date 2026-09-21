@@ -319,9 +319,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     total: number;
     orderNote?: string;
   }): Order => {
-    // Generate readable order ID e.g. HS-1095
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const newId = `HS-${randomNum}`;
+    // Generate a readable, collision-resistant order ID.
+    // Keep checking against existing orders so a duplicate ID is not created.
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let newId = '';
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const candidate = `HS-${datePart}-${randomPart}`;
+      if (!orders.some((existingOrder) => existingOrder.id === candidate)) {
+        newId = candidate;
+        break;
+      }
+    }
+
+    // Extremely unlikely fallback if all generated candidates collide.
+    if (!newId) {
+      newId = `HS-${datePart}-${Date.now().toString().slice(-6)}`;
+    }
 
     const newOrder: Order = {
       id: newId,
