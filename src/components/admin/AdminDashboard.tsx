@@ -333,9 +333,9 @@ export const AdminDashboard: React.FC = () => {
         order.mobile,
         order.altMobile || '',
         order.orderNote || '',
-        order.address?.fullAddress || '',
+        order.address?.formattedFullAddress || '',
         order.address?.district || '',
-        order.address?.upazila || '',
+        order.address?.upazilaThana || '',
         order.address?.union || '',
       ].join(' ').toLowerCase();
       return searchable.includes(q);
