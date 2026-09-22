@@ -127,6 +127,120 @@ export const AdminDashboard: React.FC = () => {
     setSettingsForm(settings);
   }, [settings]);
 
+  // Recursive category helpers — supports unlimited nesting.
+  const getCategoryChildren = (parentId: string | null) =>
+    categories
+      .filter((c) => (c.parentId || null) === parentId)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const getCategoryDepth = (id: string): number => {
+    let depth = 0;
+    let current = categories.find((c) => c.id === id);
+    const visited = new Set<string>();
+    while (current?.parentId && !visited.has(current.id)) {
+      visited.add(current.id);
+      depth += 1;
+      current = categories.find((c) => c.id === current?.parentId);
+    }
+    return depth;
+  };
+
+  const getDescendantIds = (id: string): Set<string> => {
+    const result = new Set<string>();
+    const walk = (parentId: string) => {
+      categories
+        .filter((c) => c.parentId === parentId)
+        .forEach((child) => {
+          if (result.has(child.id)) return;
+          result.add(child.id);
+          walk(child.id);
+        });
+    };
+    if (id) walk(id);
+    return result;
+  };
+
+  const renderCategoryTree = (parentId: string | null = null): React.ReactNode =>
+    getCategoryChildren(parentId).map((cat) => {
+      const children = getCategoryChildren(cat.id);
+      const depth = getCategoryDepth(cat.id);
+
+      return (
+        <React.Fragment key={cat.id}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: Math.min(depth, 8) * 18 }}>
+              <div className="w-9 h-9 shrink-0 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-stone-900 text-sm">{cat.nameBn}</span>
+                  {depth > 0 && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                      সাব-ক্যাটাগরি · স্তর {depth}
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-stone-400 truncate">
+                  {cat.nameEn || '—'} · {cat.slug}
+                  {cat.parentId ? ' · Parent: ' + (categories.find((p) => p.id === cat.parentId)?.nameBn || '—') : ' · মূল ক্যাটাগরি'}
+                </div>
+                <span className={'inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ' + (
+                  cat.isActive ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-500'
+                )}>
+                  {cat.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCategory({
+                    nameBn: '',
+                    nameEn: '',
+                    slug: '',
+                    parentId: cat.id,
+                    icon: 'Moon',
+                    isActive: true,
+                    order: getCategoryChildren(cat.id).length + 1,
+                  });
+                  setIsCategoryModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg"
+                title={cat.nameBn + '-এর ভিতরে নতুন ক্যাটাগরি'}
+              >
+                + সাব-ক্যাটাগরি
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCategory(cat);
+                  setIsCategoryModalOpen(true);
+                }}
+                className="p-1.5 text-stone-500 hover:text-emerald-700 rounded-lg"
+                title="সম্পাদনা"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('আপনি কি "' + cat.nameBn + '" ক্যাটাগরিটি মুছে ফেলতে চান?')) {
+                    deleteCategory(cat.id);
+                  }
+                }}
+                className="p-1.5 text-stone-500 hover:text-rose-600 rounded-lg"
+                title="মুছে ফেলুন"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          {children.length > 0 && renderCategoryTree(cat.id)}
+        </React.Fragment>
+      );
   // Filtered Orders
   const filteredOrders = orders.filter((order) => {
     if (orderStatusFilter !== 'all' && order.status !== orderStatusFilter) {
@@ -643,74 +757,44 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================= */}
       {activeTab === 'categories' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-base sm:text-lg font-bold text-stone-900">
-              সকল ক্যাটাগরি ({categories.length})
-            </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-stone-900">
+                ক্যাটাগরি ম্যানেজমেন্ট ({categories.length})
+              </h2>
+              <p className="text-xs text-stone-500 mt-1">
+                মূল ক্যাটাগরি → সাব-ক্যাটাগরি → আরও সাব-ক্যাটাগরি — যত স্তর প্রয়োজন যোগ করতে পারবেন।
+              </p>
+            </div>
             <button
+              type="button"
               onClick={() => {
                 setEditingCategory({
                   nameBn: '',
                   nameEn: '',
                   slug: '',
+                  parentId: null,
                   icon: 'Moon',
                   isActive: true,
+                  order: getCategoryChildren(null).length + 1,
                 });
                 setIsCategoryModalOpen(true);
               }}
               className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-colors shadow-xs"
             >
               <Plus className="w-4 h-4" />
-              <span>নতুন ক্যাটাগরি</span>
+              <span>মূল ক্যাটাগরি যোগ করুন</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className="bg-white p-4 rounded-2xl border border-stone-200 flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-bold text-stone-900 text-sm">{cat.nameBn}</div>
-                  <div className="text-xs text-stone-400">
-                    {cat.nameEn} ({cat.slug})
-                  </div>
-                  <span
-                    className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1.5 ${
-                      cat.isActive
-                        ? 'bg-emerald-50 text-emerald-800'
-                        : 'bg-stone-100 text-stone-500'
-                    }`}
-                  >
-                    {cat.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setEditingCategory(cat);
-                      setIsCategoryModalOpen(true);
-                    }}
-                    className="p-1.5 text-stone-500 hover:text-emerald-700 rounded-lg"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm(`আপনি কি "${cat.nameBn}" ক্যাটাগরিটি মুছে ফেলতে চান?`)) {
-                        deleteCategory(cat.id);
-                        showToast('ক্যাটাগরি মুছে ফেলা হয়েছে');
-                      }
-                    }}
-                    className="p-1.5 text-stone-500 hover:text-rose-600 rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+          <div className="bg-stone-50 rounded-3xl border border-stone-200 p-3 sm:p-4 space-y-2">
+            {categories.length > 0 ? (
+              renderCategoryTree(null)
+            ) : (
+              <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">
+                কোনো ক্যাটাগরি নেই। উপরের বাটনে ক্লিক করে প্রথম ক্যাটাগরি তৈরি করুন।
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
@@ -1285,6 +1369,39 @@ export const AdminDashboard: React.FC = () => {
                   }
                   className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  প্যারেন্ট ক্যাটাগরি
+                </label>
+                <select
+                  value={editingCategory.parentId || ''}
+                  onChange={(e) =>
+                    setEditingCategory({
+                      ...editingCategory,
+                      parentId: e.target.value || null,
+                    })
+                  }
+                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300 bg-white"
+                >
+                  <option value="">— মূল ক্যাটাগরি —</option>
+                  {categories
+                    .filter((c) => c.id !== editingCategory.id && !getDescendantIds(editingCategory.id || '').has(c.id))
+                    .sort((a, b) => {
+                      const da = getCategoryDepth(a.id);
+                      const db = getCategoryDepth(b.id);
+                      return da - db || (a.order ?? 0) - (b.order ?? 0);
+                    })
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {'— '.repeat(Math.min(getCategoryDepth(c.id), 8))}{c.nameBn}
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  অন্য ক্যাটাগরির ভিতরে রাখতে চাইলে এখানে সেই ক্যাটাগরি নির্বাচন করুন।
+                </p>
               </div>
 
               <div className="flex items-center gap-1.5 pt-2">
