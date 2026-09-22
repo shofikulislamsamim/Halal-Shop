@@ -1043,28 +1043,6 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-stone-200">
-            <h3 className="text-sm font-bold text-stone-900 mb-3 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-emerald-700" />
-              <span>অ্যাডমিন নিরাপত্তা ও পিন কোড:</span>
-            </h3>
-            <div className="max-w-xs">
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                অ্যাডমিন পাসকোড / পিন (Admin PIN)
-              </label>
-              <input
-                type="text"
-                value={settingsForm.adminPin || ''}
-                onChange={(e) => setSettingsForm({ ...settingsForm, adminPin: e.target.value })}
-                className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 font-mono tracking-wider"
-                placeholder="একটি শক্তিশালী পাসকোড দিন"
-              />
-              <p className="text-[11px] text-stone-500 mt-1">
-                এই পাসকোড দিয়ে অ্যাডমিন প্যানেলে লগইন করবেন। পাসকোড ফাঁকা রাখলে অ্যাডমিন লগইন কাজ করবে না।
-              </p>
-            </div>
-          </div>
-
           <button
             type="submit"
             className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors shadow-xs"
