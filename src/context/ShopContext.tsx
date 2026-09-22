@@ -591,21 +591,104 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addProduct = (productData: Omit<Product, 'id'>) => {
     const newProduct: Product = {
       ...productData,
-      id: `prod-${Date.now()}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `prod-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     };
     setProducts((prev) => [newProduct, ...prev]);
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch('/rest/v1/halal_products', {
+          method: 'POST',
+          token,
+          body: {
+            id: newProduct.id,
+            name_bn: newProduct.nameBn,
+            name_en: newProduct.nameEn || null,
+            category_id: newProduct.categoryId || null,
+            category_ids: newProduct.categoryIds || [],
+            price: newProduct.price,
+            compare_at_price: newProduct.regularPrice ?? null,
+            stock: Math.max(0, Number(newProduct.stock) || 0),
+            image_url: newProduct.imageUrl || null,
+            description: newProduct.descriptionBn || null,
+            specs: Object.fromEntries((newProduct.specifications || []).map((spec) => [spec.label, spec.value])),
+            is_active: newProduct.isActive !== false,
+          },
+        });
+      } catch (error) {
+        console.error('Product create failed:', error);
+        setProducts((prev) => prev.filter((product) => product.id !== newProduct.id));
+        showToast('পণ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
+        return;
+      }
+    })();
+
     showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
   };
 
   const updateProduct = (id: string, updated: Partial<Product>) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updated } : p))
-    );
+    const currentProduct = products.find((product) => product.id === id);
+    if (!currentProduct) return;
+    const nextProduct = { ...currentProduct, ...updated };
+    setProducts((prev) => prev.map((product) => (product.id === id ? nextProduct : product)));
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          token,
+          body: {
+            name_bn: nextProduct.nameBn,
+            name_en: nextProduct.nameEn || null,
+            category_id: nextProduct.categoryId || null,
+            category_ids: nextProduct.categoryIds || [],
+            price: nextProduct.price,
+            compare_at_price: nextProduct.regularPrice ?? null,
+            stock: Math.max(0, Number(nextProduct.stock) || 0),
+            image_url: nextProduct.imageUrl || null,
+            description: nextProduct.descriptionBn || null,
+            specs: Object.fromEntries((nextProduct.specifications || []).map((spec) => [spec.label, spec.value])),
+            is_active: nextProduct.isActive !== false,
+          },
+        });
+      } catch (error) {
+        console.error('Product update failed:', error);
+        setProducts((prev) => prev.map((product) => (product.id === id ? currentProduct : product)));
+        showToast('পণ্যের তথ্য সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
+        return;
+      }
+    })();
+
     showToast('পণ্যের তথ্য আপডেট করা হয়েছে');
   };
 
   const deleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    const target = products.find((product) => product.id === id);
+    if (!target) return;
+    setProducts((prev) => prev.filter((product) => product.id !== id));
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          token,
+        });
+      } catch (error) {
+        console.error('Product delete failed:', error);
+        setProducts((prev) => [target, ...prev]);
+        showToast('পণ্যটি মুছে ফেলা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
+        return;
+      }
+    })();
+
     showToast('পণ্যটি মুছে ফেলা হয়েছে');
   };
 
