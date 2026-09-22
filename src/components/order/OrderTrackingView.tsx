@@ -32,7 +32,9 @@ export const OrderTrackingView: React.FC = () => {
   const [hasSearched, setHasSearched] = useState(Boolean(lastCreatedOrder));
   const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSearch = (e: React.FormEvent) => {
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     if (!orderId.trim() || !mobile.trim()) {
@@ -40,9 +42,11 @@ export const OrderTrackingView: React.FC = () => {
       return;
     }
 
-    const found = getOrderByIdAndPhone(orderId.trim(), mobile.trim());
+    setIsSearching(true);
+    const found = await getOrderByIdAndPhone(orderId.trim(), mobile.trim());
     setSearchedOrder(found || null);
     setHasSearched(true);
+    setIsSearching(false);
 
     if (!found) {
       setErrorMessage('প্রদত্ত তথ্য অনুযায়ী কোনো অর্ডার পাওয়া যায়নি। অনুগ্রহ করে সঠিক তথ্য দিয়ে পুনরায় চেষ্টা করুন।');
@@ -121,9 +125,10 @@ export const OrderTrackingView: React.FC = () => {
               type="submit"
               className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-colors shadow-xs"
               id="track-search-btn"
+              disabled={isSearching}
             >
               <Search className="w-4 h-4" />
-              <span>ট্র্যাক করুন</span>
+              <span>{isSearching ? 'খোঁজা হচ্ছে...' : 'ট্র্যাক করুন'}</span>
             </button>
           </div>
         </form>
