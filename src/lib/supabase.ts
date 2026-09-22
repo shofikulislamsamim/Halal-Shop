@@ -1,5 +1,12 @@
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || '').replace(/\/$/, '');
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+// Public Supabase client configuration. These values are safe to ship in a browser app.
+// Authorization is enforced by Supabase RLS and the halal_is_admin() database function.
+const SUPABASE_URL = (
+  import.meta.env.VITE_SUPABASE_URL ||
+  'https://sypwzqawdxgxzmwimjbp.supabase.co'
+).replace(/\/$/, '');
+const SUPABASE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  'sb_publishable_bnI3nXmXgqf9CQIfMdVR4w_rftT8yPj';
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
