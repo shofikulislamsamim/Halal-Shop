@@ -2419,7 +2419,7 @@ export const AdminDashboard: React.FC = () => {
             </select>
           </div>
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-stone-50 border-b border-stone-200 text-stone-600"><tr><th className="p-3">পণ্য</th><th className="p-3">বর্তমান স্টক</th><th className="p-3">স্টক অবস্থা</th><th className="p-3 text-right">দ্রুত সমন্বয়</th></tr></thead>
                 <tbody className="divide-y divide-stone-100">
@@ -2438,15 +2438,44 @@ export const AdminDashboard: React.FC = () => {
                         <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div className="min-w-0"><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn || '—'}</div></div></div></td>
                         <td className="p-3 font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</td>
                         <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full border text-[11px] font-bold ${statusClass}`}>{statusText}</span></td>
-                        <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5">
-                          <button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button>
-                          <button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button>
-                        </div></td>
+                        <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button><button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button></div></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="md:hidden divide-y divide-stone-100">
+              {products.filter((prod) => {
+                const q = inventorySearch.trim().toLowerCase();
+                if (q && !prod.nameBn.toLowerCase().includes(q) && !prod.nameEn.toLowerCase().includes(q)) return false;
+                if (inventoryFilter === 'out') return prod.stock <= 0;
+                if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= 3;
+                if (inventoryFilter === 'in') return prod.stock > 3;
+                return true;
+              }).map((prod) => {
+                const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= 3 ? 'কম স্টক' : 'পর্যাপ্ত';
+                const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= 3 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                return (
+                  <div key={prod.id} className="p-3.5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <img src={prod.imageUrl} alt={prod.nameBn} className="w-12 h-12 rounded-xl object-cover bg-stone-100 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-stone-900 truncate">{prod.nameBn}</div>
+                        <div className="text-[11px] text-stone-400 truncate">{prod.nameEn || '—'}</div>
+                      </div>
+                      <span className={`shrink-0 px-2 py-1 rounded-lg border text-[10px] font-bold ${statusClass}`}>{statusText}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div><div className="text-[10px] text-stone-500">বর্তমান স্টক</div><div className="font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</div></div>
+                      <div className="flex items-center gap-1.5">
+                        <button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-9 h-9 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" aria-label={prod.nameBn + ' থেকে ১ কমান'}>−</button>
+                        <button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-9 h-9 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" aria-label={prod.nameBn + ' ১ বাড়ান'}>+</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
