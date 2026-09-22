@@ -67,6 +67,16 @@ export async function supabaseFetch<T = unknown>(
   }
 }
 
+export async function supabaseSendPasswordResetEmail(email: string, redirectTo?: string) {
+  return supabaseFetch('/auth/v1/recover', {
+    method: 'POST',
+    body: {
+      email: email.trim(),
+      ...(redirectTo ? { redirect_to: redirectTo } : {}),
+    },
+  });
+}
+
 export async function supabaseSignIn(email: string, password: string) {
   return supabaseFetch<{ access_token: string; refresh_token: string; user: { id: string; email?: string } }>(
     '/auth/v1/token?grant_type=password',
