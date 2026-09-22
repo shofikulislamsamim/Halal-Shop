@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { Product, Category, Order, OrderStatus, ShopSettings } from '../../types';
 import { formatPrice } from '../../utils/helpers';
-import { supabaseSendPasswordResetEmail } from '../../lib/supabase';
+import { supabaseSendPasswordResetEmail, supabaseUpdatePassword } from '../../lib/supabase';
 import {
   Package,
   ShoppingBag,
@@ -67,6 +67,53 @@ export const AdminDashboard: React.FC = () => {
   const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
   const [isSendingRecovery, setIsSendingRecovery] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState('');
+  const [passwordRecoveryToken, setPasswordRecoveryToken] = useState<string | null>(null);
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, '');
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash);
+    if (params.get('type') === 'recovery' && params.get('access_token')) {
+      setPasswordRecoveryToken(params.get('access_token'));
+      setShowPasswordRecovery(false);
+      setRecoveryMessage('');
+      setLoginError('');
+    }
+  }, []);
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!passwordRecoveryToken) return;
+    if (newAdminPassword.length < 8) {
+      setRecoveryMessage('নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।');
+      return;
+    }
+    if (newAdminPassword !== confirmAdminPassword) {
+      setRecoveryMessage('নতুন পাসওয়ার্ড ও নিশ্চিত পাসওয়ার্ড এক নয়।');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setRecoveryMessage('');
+
+    try {
+      await supabaseUpdatePassword(passwordRecoveryToken, newAdminPassword);
+      setPasswordRecoveryToken(null);
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      setRecoveryMessage('পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।');
+    } catch {
+      setRecoveryMessage('পাসওয়ার্ড পরিবর্তন করা যায়নি। রিসেট লিংকটি মেয়াদোত্তীর্ণ হলে নতুন রিসেট লিংক নিন।');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
 
   // Lockout Countdown Timer Effect
   useEffect(() => {
@@ -292,6 +339,64 @@ export const AdminDashboard: React.FC = () => {
 
   if (!isAdminLoggedIn) {
     const isLockedOut = lockoutSeconds > 0;
+
+    if (passwordRecoveryToken) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-16">
+          <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm text-center">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xs">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-stone-900 mb-1">নতুন পাসওয়ার্ড সেট করুন</h1>
+            <p className="text-stone-500 text-xs sm:text-sm mb-6">আপনার অ্যাডমিন অ্যাকাউন্টের জন্য নতুন পাসওয়ার্ড দিন।</p>
+
+            <form onSubmit={handlePasswordUpdate} className="space-y-4 text-left">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">নতুন পাসওয়ার্ড</label>
+                <input
+                  type="password"
+                  value={newAdminPassword}
+                  disabled={isUpdatingPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="কমপক্ষে ৮ অক্ষর"
+                  className="w-full bg-white text-stone-900 text-sm px-4 py-3 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+                  autoComplete="new-password"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">পাসওয়ার্ড নিশ্চিত করুন</label>
+                <input
+                  type="password"
+                  value={confirmAdminPassword}
+                  disabled={isUpdatingPassword}
+                  onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                  placeholder="আবার পাসওয়ার্ড লিখুন"
+                  className="w-full bg-white text-stone-900 text-sm px-4 py-3 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+                  autoComplete="new-password"
+                />
+              </div>
+
+              {recoveryMessage && (
+                <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3 leading-5">
+                  {recoveryMessage}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isUpdatingPassword}
+                className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-xs flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{isUpdatingPassword ? 'পাসওয়ার্ড পরিবর্তন হচ্ছে...' : 'নতুন পাসওয়ার্ড সংরক্ষণ করুন'}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
 
     if (showPasswordRecovery) {
       return (
