@@ -659,7 +659,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const now = new Date().toISOString();
     const newCategory: Category = {
       ...categoryData,
-      id: `cat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `cat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       parentId,
       slug: cleanSlug,
       order: sortOrder,
@@ -669,6 +671,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setCategories((prev) => [...prev, newCategory]);
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch('/rest/v1/halal_categories', {
+          method: 'POST',
+          token,
+          body: {
+            id: newCategory.id,
+            parent_id: newCategory.parentId,
+            name_bn: newCategory.nameBn,
+            name_en: newCategory.nameEn || null,
+            slug: newCategory.slug,
+            icon: newCategory.icon || null,
+            sort_order: newCategory.order ?? 0,
+            is_active: newCategory.isActive,
+            created_at: newCategory.createdAt,
+            updated_at: newCategory.updatedAt,
+          },
+        });
+      } catch (error) {
+        console.error('Category create failed:', error);
+        setCategories((prev) => prev.filter((category) => category.id !== newCategory.id));
+        showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
+      }
+    })();
     showToast(`"${newCategory.nameBn}" ক্যাটাগরি সফলভাবে তৈরি করা হয়েছে`);
     return { success: true, category: newCategory };
   };
@@ -726,19 +754,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    setCategories((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          return {
-            ...c,
-            ...updated,
-            parentId: updated.parentId !== undefined ? (updated.parentId || null) : c.parentId,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return c;
-      })
-    );
+    const currentCategory = categories.find((c) => c.id === id);
+    if (!currentCategory) {
+      return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
+    }
+
+    const nextCategory: Category = {
+      ...currentCategory,
+      ...updated,
+      parentId: updated.parentId !== undefined ? (updated.parentId || null) : currentCategory.parentId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        const queryId = encodeURIComponent(id);
+        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${queryId}`, {
+          method: 'PATCH',
+          token,
+          body: {
+            parent_id: nextCategory.parentId,
+            name_bn: nextCategory.nameBn,
+            name_en: nextCategory.nameEn || null,
+            slug: nextCategory.slug,
+            icon: nextCategory.icon || null,
+            sort_order: nextCategory.order ?? 0,
+            is_active: nextCategory.isActive,
+            updated_at: nextCategory.updatedAt,
+          },
+        });
+      } catch (error) {
+        console.error('Category update failed:', error);
+        setCategories((prev) => prev.map((c) => (c.id === id ? currentCategory : c)));
+        showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
+      }
+    })();
 
     showToast('ক্যাটাগরি তথ্য সফলভাবে আপডেট করা হয়েছে');
     return { success: true };
@@ -755,6 +809,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setCategories((prev) => prev.filter((c) => c.id !== id));
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        const queryId = encodeURIComponent(id);
+        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${queryId}`, {
+          method: 'DELETE',
+          token,
+        });
+      } catch (error) {
+        console.error('Category delete failed:', error);
+        setCategories((prev) => [...prev, target]);
+        showToast('ক্যাটাগরি মুছে ফেলা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
+      }
+    })();
     showToast(`"${target.nameBn}" ক্যাটাগরি মুছে ফেলা হয়েছে`);
     return { success: true };
   };
@@ -785,26 +854,66 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newTargetOrder = targetOrder === neighborOrder ? (direction === 'up' ? targetOrder - 1 : targetOrder + 1) : neighborOrder;
     const newNeighborOrder = targetOrder;
 
+    const updatedAt = new Date().toISOString();
     setCategories((prev) =>
       prev.map((c) => {
-        if (c.id === target.id) return { ...c, order: newTargetOrder };
-        if (c.id === neighbor.id) return { ...c, order: newNeighborOrder };
+        if (c.id === target.id) return { ...c, order: newTargetOrder, updatedAt };
+        if (c.id === neighbor.id) return { ...c, order: newNeighborOrder, updatedAt };
         return c;
       })
     );
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await Promise.all([
+          supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(target.id)}`, {
+            method: 'PATCH', token,
+            body: { sort_order: newTargetOrder, updated_at: updatedAt },
+          }),
+          supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(neighbor.id)}`, {
+            method: 'PATCH', token,
+            body: { sort_order: newNeighborOrder, updated_at: updatedAt },
+          }),
+        ]);
+      } catch (error) {
+        console.error('Category reorder failed:', error);
+        setCategories((prev) => prev.map((c) => {
+          if (c.id === target.id) return { ...c, order: targetOrder };
+          if (c.id === neighbor.id) return { ...c, order: neighborOrder };
+          return c;
+        }));
+        showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা যায়নি।');
+      }
+    })();
   };
 
   const toggleCategoryStatus = (id: string) => {
-    setCategories((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          const newStatus = !c.isActive;
-          showToast(`"${c.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
-          return { ...c, isActive: newStatus, updatedAt: new Date().toISOString() };
-        }
-        return c;
-      })
-    );
+    const currentCategory = categories.find((c) => c.id === id);
+    if (!currentCategory) return;
+    const newStatus = !currentCategory.isActive;
+    const updatedAt = new Date().toISOString();
+    const nextCategory = { ...currentCategory, isActive: newStatus, updatedAt };
+    setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          token,
+          body: { is_active: newStatus, updated_at: updatedAt },
+        });
+      } catch (error) {
+        console.error('Category status update failed:', error);
+        setCategories((prev) => prev.map((c) => (c.id === id ? currentCategory : c)));
+        showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি।');
+      }
+    })();
+
+    showToast(`"${currentCategory.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
   };
 
   // Settings update
