@@ -111,6 +111,26 @@ interface ShopContextType {
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
+const generateProductSlug = (name: string, existingProducts: Product[], excludeId?: string): string => {
+  let baseSlug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (!baseSlug) {
+    baseSlug = `product-${Date.now().toString(36)}`;
+  }
+
+  let finalSlug = baseSlug;
+  let counter = 1;
+  while (existingProducts.some((product) => product.id !== excludeId && product.nameBn && finalSlug === product.nameBn.toLowerCase().trim())) {
+    finalSlug = `${baseSlug}-${counter++}`;
+  }
+  return finalSlug;
+};
+
 const STORAGE_KEYS = {
   CART: 'halalshop_cart_v1',
   PRODUCTS: 'halalshop_products_v1',
@@ -280,7 +300,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           })));
         }
 
-        if (Array.isArray(remoteProducts)) {
+        // Treat Supabase as the source of truth only when it actually has catalog rows.
+        // An empty remote catalog must not wipe a valid local fallback during setup/migration.
+        if (Array.isArray(remoteProducts) && remoteProducts.length > 0) {
           setProducts(remoteProducts.map((product) => ({
             id: product.id,
             nameBn: product.name_bn,
@@ -636,6 +658,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: newProduct.id,
             name_bn: newProduct.nameBn,
             name_en: newProduct.nameEn || null,
+            slug: generateProductSlug(newProduct.nameEn || newProduct.nameBn, products, newProduct.id),
             category_id: newProduct.categoryId || null,
             category_ids: newProduct.categoryIds || [],
             price: newProduct.price,
