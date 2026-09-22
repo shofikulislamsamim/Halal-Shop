@@ -36,7 +36,6 @@ export const AdminDashboard: React.FC = () => {
     orders,
     settings,
     isAdminLoggedIn,
-    adminLogin,
     adminLogout,
     verifyAdminLogin,
     addProduct,
@@ -92,7 +91,7 @@ export const AdminDashboard: React.FC = () => {
     setLoginError('');
     const check = await verifyAdminLogin(adminEmail, adminPassword);
     if (check.success) {
-      await adminLogin(adminEmail, adminPassword);
+      // verifyAdminLogin already stores the authenticated Supabase session.
       setAdminPassword('');
       setFailedAttempts(0);
       setLockoutSeconds(0);
