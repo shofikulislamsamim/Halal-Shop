@@ -33,11 +33,24 @@ export async function supabaseFetch<T = unknown>(
     headers.Authorization = `Bearer ${options.token}`;
   }
 
-  const response = await fetch(`${SUPABASE_URL}${path}`, {
+  let response = await fetch(`${SUPABASE_URL}${path}`, {
     method: options.method || 'GET',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
+
+  // Access tokens expire. Refresh once on 401 and retry the authenticated request.
+  if (response.status === 401 && options.token && !path.startsWith('/auth/v1/')) {
+    const refreshed = await supabaseRefreshSession();
+    if (refreshed?.access_token) {
+      headers.Authorization = `Bearer ${refreshed.access_token}`;
+      response = await fetch(`${SUPABASE_URL}${path}`, {
+        method: options.method || 'GET',
+        headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      });
+    }
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -61,21 +74,70 @@ export async function supabaseSignIn(email: string, password: string) {
   );
 }
 
+const ACCESS_TOKEN_KEY = 'halalshop_supabase_access_token';
+const REFRESH_TOKEN_KEY = 'halalshop_supabase_refresh_token';
+
 export function getSupabaseAccessToken(): string | null {
   try {
-    return sessionStorage.getItem('halalshop_supabase_access_token');
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY);
   } catch {
     return null;
   }
 }
 
-export function setSupabaseAccessToken(token: string | null) {
+export function getSupabaseRefreshToken(): string | null {
   try {
-    if (token) sessionStorage.setItem('halalshop_supabase_access_token', token);
-    else sessionStorage.removeItem('halalshop_supabase_access_token');
+    return sessionStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setSupabaseSession(accessToken: string | null, refreshToken: string | null) {
+  try {
+    if (accessToken) sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    else sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+
+    if (refreshToken) sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    else sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {
     // Ignore unavailable session storage.
   }
+}
+
+export function setSupabaseAccessToken(token: string | null) {
+  setSupabaseSession(token, getSupabaseRefreshToken());
+}
+
+export function clearSupabaseSession() {
+  setSupabaseSession(null, null);
+}
+
+export async function supabaseRefreshSession() {
+  const refreshToken = getSupabaseRefreshToken();
+  if (!refreshToken) return null;
+
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+
+  if (!response.ok) {
+    clearSupabaseSession();
+    return null;
+  }
+
+  const data = await response.json() as {
+    access_token: string;
+    refresh_token?: string;
+  };
+
+  setSupabaseSession(data.access_token, data.refresh_token || refreshToken);
+  return data;
 }
 
 
