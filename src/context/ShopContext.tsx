@@ -20,6 +20,11 @@ import {
   canDeleteCategory,
   generateCategorySlug,
 } from '../utils/categoryHelpers';
+import {
+  getSupabaseAccessToken,
+  isSupabaseConfigured,
+  supabaseFetch,
+} from '../lib/supabase';
 
 interface ShopContextType {
   // Navigation & View
@@ -237,6 +242,83 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return INITIAL_SETTINGS;
   });
+
+  // Hydrate the public storefront from Supabase when configured.
+  // Local storage remains a fallback so the development build still opens
+  // even before deployment secrets are added.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+
+    const loadRemoteCatalog = async () => {
+      try {
+        const [remoteCategories, remoteProducts, remoteSettings] = await Promise.all([
+          supabaseFetch<any[]>('/rest/v1/halal_categories?select=*&order=sort_order.asc'),
+          supabaseFetch<any[]>('/rest/v1/halal_products?select=*&order=created_at.desc'),
+          supabaseFetch<any[]>('/rest/v1/halal_store_settings?select=*&id=eq.true&limit=1'),
+        ]);
+
+        if (cancelled) return;
+
+        if (Array.isArray(remoteCategories) && remoteCategories.length > 0) {
+          setCategories(remoteCategories.map((cat) => ({
+            id: cat.id,
+            nameBn: cat.name_bn,
+            nameEn: cat.name_en || '',
+            slug: cat.slug,
+            parentId: cat.parent_id,
+            icon: cat.icon || undefined,
+            isActive: cat.is_active !== false,
+            order: Number(cat.sort_order || 0),
+            createdAt: cat.created_at,
+            updatedAt: cat.updated_at,
+          })));
+        }
+
+        if (Array.isArray(remoteProducts)) {
+          setProducts(remoteProducts.map((product) => ({
+            id: product.id,
+            nameBn: product.name_bn,
+            nameEn: product.name_en || '',
+            categoryId: product.category_id || '',
+            categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
+            price: Number(product.price || 0),
+            regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
+            stock: Number(product.stock || 0),
+            imageUrl: product.image_url || '',
+            descriptionBn: product.description || '',
+            specifications: Object.entries(product.specs || {}).map(([label, value]) => ({
+              label,
+              value: String(value ?? ''),
+            })),
+            isFeatured: false,
+            isActive: product.is_active !== false,
+          })));
+        }
+
+        const remote = remoteSettings?.[0];
+        if (remote) {
+          setSettings((prev) => ({
+            ...prev,
+            shopName: remote.store_name || prev.shopName,
+            logoUrl: remote.logo_url || prev.logoUrl,
+            contactNumber: remote.phone || prev.contactNumber,
+            whatsappNumber: remote.whatsapp || prev.whatsappNumber,
+            footerNotice: remote.about || prev.footerNotice,
+            ...(remote.delivery_settings || {}),
+          }));
+        }
+      } catch (error) {
+        console.error('Supabase catalog load failed; keeping local fallback.', error);
+      }
+    };
+
+    void loadRemoteCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return (
