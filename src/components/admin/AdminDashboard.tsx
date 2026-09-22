@@ -326,11 +326,19 @@ export const AdminDashboard: React.FC = () => {
       return false;
     }
     if (orderSearchQuery.trim()) {
-      const q = orderSearchQuery.toLowerCase();
-      const matchId = order.id.toLowerCase().includes(q);
-      const matchName = order.customerName.toLowerCase().includes(q);
-      const matchPhone = order.mobile.includes(q);
-      return matchId || matchName || matchPhone;
+      const q = orderSearchQuery.trim().toLowerCase();
+      const searchable = [
+        order.id,
+        order.customerName,
+        order.mobile,
+        order.altMobile || '',
+        order.orderNote || '',
+        order.address?.fullAddress || '',
+        order.address?.district || '',
+        order.address?.upazila || '',
+        order.address?.union || '',
+      ].join(' ').toLowerCase();
+      return searchable.includes(q);
     }
     return true;
   });
