@@ -45,7 +45,13 @@ export async function supabaseFetch<T = unknown>(
   }
 
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const responseText = await response.text();
+  if (!responseText.trim()) return undefined as T;
+  try {
+    return JSON.parse(responseText) as T;
+  } catch {
+    throw new Error('Supabase returned an invalid JSON response.');
+  }
 }
 
 export async function supabaseSignIn(email: string, password: string) {
