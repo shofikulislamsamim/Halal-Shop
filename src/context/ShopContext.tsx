@@ -125,7 +125,13 @@ const generateProductSlug = (name: string, existingProducts: Product[], excludeI
 
   let finalSlug = baseSlug;
   let counter = 1;
-  while (existingProducts.some((product) => product.id !== excludeId && product.nameBn && finalSlug === product.nameBn.toLowerCase().trim())) {
+  while (existingProducts.some((product) => {
+    if (product.id === excludeId) return false;
+    const candidateNames = [product.nameEn, product.nameBn]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase().trim().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''));
+    return candidateNames.includes(finalSlug);
+  })) {
     finalSlug = `${baseSlug}-${counter++}`;
   }
   return finalSlug;
