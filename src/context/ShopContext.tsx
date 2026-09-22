@@ -125,13 +125,7 @@ const generateProductSlug = (name: string, existingProducts: Product[], excludeI
 
   let finalSlug = baseSlug;
   let counter = 1;
-  while (existingProducts.some((product) => {
-    if (product.id === excludeId) return false;
-    const candidateNames = [product.nameEn, product.nameBn]
-      .filter(Boolean)
-      .map((value) => String(value).toLowerCase().trim().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''));
-    return candidateNames.includes(finalSlug);
-  })) {
+  while (existingProducts.some((product) => product.id !== excludeId && product.slug === finalSlug)) {
     finalSlug = `${baseSlug}-${counter++}`;
   }
   return finalSlug;
@@ -312,6 +306,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setProducts(remoteProducts.map((product) => ({
             id: product.id,
             nameBn: product.name_bn,
+            slug: product.slug || undefined,
             nameEn: product.name_en || '',
             categoryId: product.category_id || '',
             categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
@@ -650,6 +645,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : `prod-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      slug: generateProductSlug(productData.nameEn || productData.nameBn, products),
     };
     setProducts((prev) => [newProduct, ...prev]);
 
@@ -664,7 +660,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             id: newProduct.id,
             name_bn: newProduct.nameBn,
             name_en: newProduct.nameEn || null,
-            slug: generateProductSlug(newProduct.nameEn || newProduct.nameBn, products, newProduct.id),
+            slug: newProduct.slug,
             category_id: newProduct.categoryId || null,
             category_ids: newProduct.categoryIds || [],
             price: newProduct.price,
