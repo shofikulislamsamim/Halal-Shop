@@ -50,7 +50,9 @@ export const AdminDashboard: React.FC = () => {
   } = useShop();
 
   // Admin tabs: 'orders' | 'products' | 'categories' | 'settings'
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'settings'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'inventory' | 'categories' | 'settings'>('orders');
+  const [inventoryFilter, setInventoryFilter] = useState<'all' | 'out' | 'low' | 'in'>('all');
+  const [inventorySearch, setInventorySearch] = useState('');
 
   // Login form state
   const [adminEmail, setAdminEmail] = useState('sk82716102@gmail.com');
@@ -483,6 +485,17 @@ export const AdminDashboard: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('inventory')}
+          className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
+            activeTab === 'inventory'
+              ? 'border-emerald-700 text-emerald-800'
+              : 'border-transparent text-stone-500 hover:text-stone-800'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>স্টক / ইনভেন্টরি</span>
+        </button>
+        <button
           onClick={() => setActiveTab('categories')}
           className={`pb-3 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-2 whitespace-nowrap transition-colors ${
             activeTab === 'categories'
@@ -754,7 +767,61 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* ========================================================= */}
-      {/* 3. CATEGORIES TAB */}
+      {/* 3. INVENTORY TAB */}
+      {/* ========================================================= */}
+      {activeTab === 'inventory' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-2xl border border-stone-200 p-4"><span className="text-[11px] text-stone-500 font-semibold block">মোট পণ্য</span><span className="text-xl font-black text-stone-900">{products.length}</span></div>
+            <div className="bg-white rounded-2xl border border-stone-200 p-4"><span className="text-[11px] text-stone-500 font-semibold block">স্টক আছে</span><span className="text-xl font-black text-emerald-800">{products.filter((p) => p.stock > 3).length}</span></div>
+            <div className="bg-white rounded-2xl border border-stone-200 p-4"><span className="text-[11px] text-stone-500 font-semibold block">কম স্টক</span><span className="text-xl font-black text-amber-700">{products.filter((p) => p.stock > 0 && p.stock <= 3).length}</span></div>
+            <div className="bg-white rounded-2xl border border-stone-200 p-4"><span className="text-[11px] text-stone-500 font-semibold block">স্টক শেষ</span><span className="text-xl font-black text-rose-700">{products.filter((p) => p.stock <= 0).length}</span></div>
+          </div>
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <input type="text" value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} placeholder="পণ্যের নাম দিয়ে স্টক খুঁজুন..." className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600" />
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            </div>
+            <select value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value as typeof inventoryFilter)} className="bg-stone-50 text-stone-800 text-xs px-3 py-2 rounded-xl border border-stone-300 focus:outline-hidden">
+              <option value="all">সব স্টক</option><option value="out">স্টক শেষ</option><option value="low">কম স্টক (১–৩)</option><option value="in">পর্যাপ্ত স্টক (৪+)</option>
+            </select>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-stone-50 border-b border-stone-200 text-stone-600"><tr><th className="p-3">পণ্য</th><th className="p-3">বর্তমান স্টক</th><th className="p-3">স্টক অবস্থা</th><th className="p-3 text-right">দ্রুত সমন্বয়</th></tr></thead>
+                <tbody className="divide-y divide-stone-100">
+                  {products.filter((prod) => {
+                    const q = inventorySearch.trim().toLowerCase();
+                    if (q && !prod.nameBn.toLowerCase().includes(q) && !prod.nameEn.toLowerCase().includes(q)) return false;
+                    if (inventoryFilter === 'out') return prod.stock <= 0;
+                    if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= 3;
+                    if (inventoryFilter === 'in') return prod.stock > 3;
+                    return true;
+                  }).map((prod) => {
+                    const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= 3 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                    const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= 3 ? 'কম স্টক' : 'পর্যাপ্ত';
+                    return (
+                      <tr key={prod.id} className="hover:bg-stone-50/70">
+                        <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div className="min-w-0"><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn || '—'}</div></div></div></td>
+                        <td className="p-3 font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</td>
+                        <td className="p-3"><span className={`inline-flex px-2 py-1 rounded-full border text-[11px] font-bold ${statusClass}`}>{statusText}</span></td>
+                        <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5">
+                          <button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button>
+                          <button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button>
+                        </div></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 4. CATEGORIES TAB */}
       {/* ========================================================= */}
       {activeTab === 'categories' && (
         <div className="space-y-4">
@@ -801,7 +868,7 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* ========================================================= */}
-      {/* 4. SETTINGS TAB */}
+      {/* 5. SETTINGS TAB */}
       {/* ========================================================= */}
       {activeTab === 'settings' && (
         <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-6 max-w-3xl">
