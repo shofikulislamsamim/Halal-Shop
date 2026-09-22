@@ -20,6 +20,11 @@ import {
   canDeleteCategory,
   generateCategorySlug,
 } from '../utils/categoryHelpers';
+import {
+  getSupabaseAccessToken,
+  isSupabaseConfigured,
+  supabaseFetch,
+} from '../lib/supabase';
 
 interface ShopContextType {
   // Navigation & View
@@ -94,7 +99,6 @@ interface ShopContextType {
   verifyAdminLogin: (password: string) => { success: boolean; message?: string };
   logoutAdmin: () => void;
   adminLogout: () => void;
-  resetAdminPinToDefault: () => void;
 
   // Toast / notification
   toastMessage: string | null;
@@ -110,6 +114,31 @@ const STORAGE_KEYS = {
   ORDERS: 'halalshop_orders_v1',
   SETTINGS: 'halalshop_settings_v1',
   ADMIN_AUTH: 'halalshop_admin_auth_v1',
+};
+
+const safeStorageGet = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch (error) {
+    console.error('Failed to read local storage', key, error);
+    return null;
+  }
+};
+
+const safeStorageSet = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.error('Failed to persist local storage', key, error);
+  }
+};
+
+const safeStorageRemove = (key: string): void => {
+  try {
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error('Failed to remove local storage', key, error);
+  }
 };
 
 export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -128,7 +157,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Persistence State
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+    const saved = safeStorageGet(STORAGE_KEYS.PRODUCTS);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -136,31 +165,30 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
+    const saved = safeStorageGet(STORAGE_KEYS.CATEGORIES);
     if (saved) {
       try {
         const parsed: Category[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasParentProperty = parsed.some((c) => 'parentId' in c);
-          if (!hasParentProperty || parsed.length <= 5) {
-            const merged = [...INITIAL_CATEGORIES];
-            for (const item of parsed) {
-              const idx = merged.findIndex((m) => m.id === item.id);
-              if (idx >= 0) {
-                merged[idx] = {
-                  ...merged[idx],
-                  ...item,
-                  parentId: item.parentId !== undefined ? item.parentId : merged[idx].parentId,
-                };
-              } else {
-                merged.push({ ...item, parentId: item.parentId || null });
-              }
-            }
-            return merged;
-          }
-          return parsed.map((c) => ({
-            ...c,
-            parentId: c.parentId !== undefined ? c.parentId : null,
+          // Stored categories are the source of truth. Do not merge initial
+          // categories back in after an admin intentionally deletes one.
+          const validIds = new Set(parsed.map((category) => category.id));
+          const normalized = parsed
+            .filter((category) => Boolean(category?.id && category?.nameBn))
+            .map((category, index) => ({
+              ...category,
+              parentId:
+                category.parentId && validIds.has(category.parentId)
+                  ? category.parentId
+                  : null,
+              order: Number.isFinite(category.order) ? category.order : index,
+              isActive: category.isActive !== false,
+              slug: String(category.slug || category.nameEn || category.nameBn).trim(),
+            }));
+
+          return normalized.map((category) => ({
+            ...category,
+            parentId: category.parentId === category.id ? null : category.parentId,
           }));
         }
       } catch (e) {
@@ -171,15 +199,27 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CART);
+    const saved = safeStorageGet(STORAGE_KEYS.CART);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (item): item is CartItem =>
+              Boolean(item?.product?.id) &&
+              Number.isFinite(item?.quantity) &&
+              item.quantity > 0
+          );
+        }
+      } catch (e) {
+        console.error('Failed to parse cart from storage', e);
+      }
     }
     return [];
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
+    const saved = safeStorageGet(STORAGE_KEYS.ORDERS);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
@@ -187,14 +227,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [settings, setSettings] = useState<WebsiteSettings>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const saved = safeStorageGet(STORAGE_KEYS.SETTINGS);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         return {
           ...INITIAL_SETTINGS,
           ...parsed,
-          adminPin: String(parsed.adminPin || INITIAL_SETTINGS.adminPin || '1234').trim(),
+          adminPin: String(parsed.adminPin || INITIAL_SETTINGS.adminPin || '').trim(),
         };
       } catch (e) {
         console.error(e);
@@ -203,32 +243,108 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_SETTINGS;
   });
 
+  // Hydrate the public storefront from Supabase when configured.
+  // Local storage remains a fallback so the development build still opens
+  // even before deployment secrets are added.
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let cancelled = false;
+
+    const loadRemoteCatalog = async () => {
+      try {
+        const [remoteCategories, remoteProducts, remoteSettings] = await Promise.all([
+          supabaseFetch<any[]>('/rest/v1/halal_categories?select=*&order=sort_order.asc'),
+          supabaseFetch<any[]>('/rest/v1/halal_products?select=*&order=created_at.desc'),
+          supabaseFetch<any[]>('/rest/v1/halal_store_settings?select=*&id=eq.true&limit=1'),
+        ]);
+
+        if (cancelled) return;
+
+        if (Array.isArray(remoteCategories) && remoteCategories.length > 0) {
+          setCategories(remoteCategories.map((cat) => ({
+            id: cat.id,
+            nameBn: cat.name_bn,
+            nameEn: cat.name_en || '',
+            slug: cat.slug,
+            parentId: cat.parent_id,
+            icon: cat.icon || undefined,
+            isActive: cat.is_active !== false,
+            order: Number(cat.sort_order || 0),
+            createdAt: cat.created_at,
+            updatedAt: cat.updated_at,
+          })));
+        }
+
+        if (Array.isArray(remoteProducts)) {
+          setProducts(remoteProducts.map((product) => ({
+            id: product.id,
+            nameBn: product.name_bn,
+            nameEn: product.name_en || '',
+            categoryId: product.category_id || '',
+            categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
+            price: Number(product.price || 0),
+            regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
+            stock: Number(product.stock || 0),
+            imageUrl: product.image_url || '',
+            descriptionBn: product.description || '',
+            specifications: Object.entries(product.specs || {}).map(([label, value]) => ({
+              label,
+              value: String(value ?? ''),
+            })),
+            isFeatured: false,
+            isActive: product.is_active !== false,
+          })));
+        }
+
+        const remote = remoteSettings?.[0];
+        if (remote) {
+          setSettings((prev) => ({
+            ...prev,
+            shopName: remote.store_name || prev.shopName,
+            logoUrl: remote.logo_url || prev.logoUrl,
+            contactNumber: remote.phone || prev.contactNumber,
+            whatsappNumber: remote.whatsapp || prev.whatsappNumber,
+            footerNotice: remote.about || prev.footerNotice,
+            ...(remote.delivery_settings || {}),
+          }));
+        }
+      } catch (error) {
+        console.error('Supabase catalog load failed; keeping local fallback.', error);
+      }
+    };
+
+    void loadRemoteCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     return (
-      sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true' ||
-      localStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true'
+      sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true'
     );
   });
 
   // Save to LocalStorage on change
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+    safeStorageSet(STORAGE_KEYS.CART, JSON.stringify(cart));
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    safeStorageSet(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+    safeStorageSet(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   }, [categories]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+    safeStorageSet(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    safeStorageSet(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }, [settings]);
 
   // Toast auto-clear
@@ -250,23 +366,29 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Cart operations
   const addToCart = (product: Product, quantity = 1) => {
-    if (product.stock <= 0) {
-      showToast('দুঃখিত, এই পণ্যটি স্টকে নেই!');
+    const currentProduct = products.find((p) => p.id === product.id) || product;
+    const requestedQuantity = Math.max(1, Math.floor(quantity));
+
+    if (!currentProduct.isActive || currentProduct.stock <= 0) {
+      showToast('দুঃখিত, এই পণ্যটি বর্তমানে স্টকে নেই।');
       return;
     }
 
     setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === product.id);
+      const existingIndex = prev.findIndex((item) => item.product.id === currentProduct.id);
       if (existingIndex > -1) {
         const updated = [...prev];
-        const newQty = Math.min(updated[existingIndex].quantity + quantity, product.stock);
-        updated[existingIndex] = { ...updated[existingIndex], quantity: newQty };
+        const newQty = Math.min(
+          updated[existingIndex].quantity + requestedQuantity,
+          currentProduct.stock
+        );
+        updated[existingIndex] = { product: currentProduct, quantity: newQty };
         return updated;
       }
-      return [...prev, { product, quantity: Math.min(quantity, product.stock) }];
+      return [...prev, { product: currentProduct, quantity: Math.min(requestedQuantity, currentProduct.stock) }];
     });
 
-    showToast(`"${product.nameBn}" কার্টে যোগ করা হয়েছে!`);
+    showToast(`"${currentProduct.nameBn}" কার্টে যোগ করা হয়েছে!`);
   };
 
   const buyNow = (product: Product, quantity = 1) => {
@@ -319,9 +441,66 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     total: number;
     orderNote?: string;
   }): Order => {
-    // Generate readable order ID e.g. HS-1095
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const newId = `HS-${randomNum}`;
+    // Re-read the latest catalog state before accepting an order. The product
+    // objects carried by an old cart tab can otherwise contain stale prices/stock.
+    const latestProductsById = new Map(products.map((product) => [product.id, product]));
+    const normalizedItems: Order['items'] = [];
+    const requestedByProduct = new Map<string, number>();
+
+    for (const item of orderData.items) {
+      const latestProduct = latestProductsById.get(item.productId);
+      if (!latestProduct || !latestProduct.isActive) {
+        throw new Error(`পণ্যটি আর উপলব্ধ নেই: ${item.nameBn}`);
+      }
+
+      const quantity = Math.max(1, Math.floor(Number(item.quantity)));
+      const previousQuantity = requestedByProduct.get(item.productId) || 0;
+      const nextQuantity = previousQuantity + quantity;
+
+      if (nextQuantity > latestProduct.stock) {
+        throw new Error(`"${latestProduct.nameBn}" এর পর্যাপ্ত স্টক নেই।`);
+      }
+
+      requestedByProduct.set(item.productId, nextQuantity);
+      normalizedItems.push({
+        productId: latestProduct.id,
+        nameBn: latestProduct.nameBn,
+        price: latestProduct.price,
+        quantity,
+        total: latestProduct.price * quantity,
+        imageUrl: latestProduct.imageUrl,
+      });
+    }
+
+    if (normalizedItems.length === 0) {
+      throw new Error('অর্ডারে অন্তত একটি বৈধ পণ্য থাকতে হবে।');
+    }
+
+    const calculatedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0);
+    const normalizedDeliveryCharge = Math.max(0, Number(orderData.deliveryCharge) || 0);
+    const calculatedTotal = calculatedSubtotal + normalizedDeliveryCharge;
+
+    if (Math.abs(calculatedTotal - Number(orderData.total)) > 0.01) {
+      throw new Error('অর্ডারের মোট মূল্য পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+
+    // Generate a readable, collision-resistant order ID.
+    // Keep checking against existing orders so a duplicate ID is not created.
+    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let newId = '';
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const candidate = `HS-${datePart}-${randomPart}`;
+      if (!orders.some((existingOrder) => existingOrder.id === candidate)) {
+        newId = candidate;
+        break;
+      }
+    }
+
+    // Extremely unlikely fallback if all generated candidates collide.
+    if (!newId) {
+      newId = `HS-${datePart}-${Date.now().toString().slice(-6)}`;
+    }
 
     const newOrder: Order = {
       id: newId,
@@ -330,10 +509,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mobile: orderData.mobile,
       altMobile: orderData.altMobile,
       address: orderData.address,
-      items: orderData.items,
-      subtotal: orderData.subtotal,
-      deliveryCharge: orderData.deliveryCharge,
-      total: orderData.total,
+      items: normalizedItems,
+      subtotal: calculatedSubtotal,
+      deliveryCharge: normalizedDeliveryCharge,
+      total: calculatedTotal,
       paymentMethod: 'cash_on_delivery',
       status: 'pending',
       orderNote: orderData.orderNote,
@@ -345,9 +524,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Reduce product stock accordingly
     setProducts((prev) =>
       prev.map((prod) => {
-        const orderedItem = orderData.items.find((i) => i.productId === prod.id);
-        if (orderedItem) {
-          return { ...prod, stock: Math.max(0, prod.stock - orderedItem.quantity) };
+        const orderedQuantity = requestedByProduct.get(prod.id);
+        if (orderedQuantity) {
+          return { ...prod, stock: Math.max(0, prod.stock - orderedQuantity) };
         }
         return prod;
       })
@@ -483,7 +662,37 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Slug uniqueness check
+    // 2. Parent must exist.
+    if (updated.parentId) {
+      const parentExists = categories.some((c) => c.id === updated.parentId);
+      if (!parentExists) {
+        showToast('নির্বাচিত প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি');
+        return { success: false, message: 'প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি' };
+      }
+    }
+
+    // 3. Prevent duplicate names under the same parent.
+    if (updated.nameBn !== undefined || updated.parentId !== undefined) {
+      const current = categories.find((c) => c.id === id);
+      const targetName = (updated.nameBn ?? current?.nameBn ?? '').trim().toLowerCase();
+      const targetParentId = updated.parentId !== undefined
+        ? (updated.parentId || null)
+        : (current?.parentId || null);
+
+      const duplicate = categories.some(
+        (c) =>
+          c.id !== id &&
+          (c.parentId || null) === targetParentId &&
+          c.nameBn.trim().toLowerCase() === targetName
+      );
+
+      if (duplicate) {
+        showToast('একই প্যারেন্টের অধীনে এই নামে আরেকটি ক্যাটাগরি আছে');
+        return { success: false, message: 'একই প্যারেন্টের অধীনে নামটি ইতিমধ্যে ব্যবহৃত হয়েছে' };
+      }
+    }
+
+    // 4. Slug uniqueness check
     if (updated.slug) {
       const slugDuplicate = categories.some(
         (c) => c.id !== id && c.slug.toLowerCase() === updated.slug?.trim().toLowerCase()
@@ -598,52 +807,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Verify Admin Login Credentials
   const verifyAdminLogin = (password: string): { success: boolean; message?: string } => {
     if (!password || !password.trim()) {
-      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড বা পিন প্রদান করুন।' };
+      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড প্রদান করুন।' };
     }
 
-    const cleaned = normalizeInput(password);
-    if (cleaned.length < 3) {
-      return { success: false, message: 'পাসকোডটি অন্তত ৩-৪ অক্ষরের হতে হবে (যেমন: 1234)।' };
+    const configuredPin = String(settings.adminPin || '').trim();
+    if (!configuredPin) {
+      return {
+        success: false,
+        message: 'অ্যাডমিন পাসকোড কনফিগার করা নেই। সেটিংস থেকে একটি পাসকোড নির্ধারণ করুন।',
+      };
     }
 
-    const currentConfigured = normalizeInput(String(settings.adminPin || '1234'));
-
-    // Master list of allowed admin keys:
-    // 1. Current configured pin in settings
-    // 2. Default PIN '1234'
-    // 3. Common recovery/developer credentials
-    const validCandidates = [
-      currentConfigured,
-      '1234',
-      'admin123',
-      'halal123',
-      'admin',
-      '123456',
-      '0000',
-    ];
-
-    const inputLower = cleaned.toLowerCase();
-    const inputNoSpaces = cleaned.replace(/\s+/g, '').toLowerCase();
-
-    const isMatch = validCandidates.some((candidate) => {
-      if (!candidate) return false;
-      const cNorm = candidate.toLowerCase();
-      const cNoSpaces = cNorm.replace(/\s+/g, '');
-      return (
-        inputLower === cNorm ||
-        inputNoSpaces === cNoSpaces ||
-        cleaned === candidate
-      );
-    });
-
-    if (isMatch) {
-      return { success: true };
+    if (password.trim() !== configuredPin) {
+      return { success: false, message: 'ভুল অ্যাডমিন পাসকোড।' };
     }
 
-    return {
-      success: false,
-      message: 'ভুল পাসকোড! সঠিক পিন দিন (ডিফল্ট পিন: 1234 অথবা admin123)।',
-    };
+    return { success: true };
   };
 
   // Admin Login Handler
@@ -652,31 +831,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (result.success) {
       setIsAdminAuthenticated(true);
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      localStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+      safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
       showToast('অ্যাডমিন লগইন সফল হয়েছে! স্বাগতম।');
       return true;
     }
+    showToast(result.message || 'অ্যাডমিন লগইন ব্যর্থ হয়েছে।');
     return false;
   };
 
-  // Reset Admin PIN to Default 1234 (emergency / recovery)
-  const resetAdminPinToDefault = () => {
-    setSettings((prev) => {
-      const updated: WebsiteSettings = { ...prev, adminPin: '1234' };
-      try {
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save reset settings:', e);
-      }
-      return updated;
-    });
-    showToast('অ্যাডমিন পিন সফলভাবে ডিফল্ট (1234)-এ রিসেট করা হয়েছে');
-  };
+  const adminLogin = loginAdmin;
 
-  const logoutAdmin = () => {
+const logoutAdmin = () => {
     setIsAdminAuthenticated(false);
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
-    localStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+    safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
     showToast('অ্যাডমিন প্যানেল থেকে লগআউট করা হয়েছে');
     navigateTo('home');
   };
@@ -739,7 +907,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifyAdminLogin,
         logoutAdmin,
         adminLogout: logoutAdmin,
-        resetAdminPinToDefault,
 
         toastMessage,
         showToast,

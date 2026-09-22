@@ -14,7 +14,7 @@ export const INITIAL_SETTINGS: WebsiteSettings = {
   heroSubtitle: 'হালাল শপ থেকে খাঁটি ও মানসম্মত পণ্য কিনুন একদম নিশ্চিন্তে। ক্যাশ অন ডেলিভারিতে দ্রুত ডেলিভারি!',
   footerNotice: '© ২০২৬ Halal Shop. সকল অধিকার সংরক্ষিত। বিশ্বস্ত হালাল পণ্যের নিরাপদ ঠিকানা।',
   shopAddress: 'হাউজ নং ১২, রোড ৩, মিরপুর ১০, ঢাকা-১২১৬, বাংলাদেশ',
-  adminPin: '1234',
+  adminPin: '',
 };
 
 export const INITIAL_CATEGORIES: Category[] = [

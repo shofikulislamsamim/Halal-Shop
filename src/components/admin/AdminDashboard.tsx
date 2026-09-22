@@ -13,7 +13,6 @@ import {
   Search,
   Eye,
   EyeOff,
-  Key,
   ShieldCheck,
   CheckCircle,
   XCircle,
@@ -26,8 +25,6 @@ import {
   FileText,
   DollarSign,
   Truck,
-  RotateCcw,
-  HelpCircle,
   ShieldAlert,
   AlertCircle,
 } from 'lucide-react';
@@ -42,7 +39,6 @@ export const AdminDashboard: React.FC = () => {
     adminLogin,
     adminLogout,
     verifyAdminLogin,
-    resetAdminPinToDefault,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -113,15 +109,6 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle Emergency Reset to Default PIN
-  const handleResetPin = () => {
-    resetAdminPinToDefault();
-    setPinInput('1234');
-    setLoginError('');
-    setFailedAttempts(0);
-    setLockoutSeconds(0);
-    setShowForgotHelp(false);
-  };
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -257,11 +244,6 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
 
-              {!loginError && !isLockedOut && (
-                <p className="text-[11px] text-stone-400 mt-2 text-center">
-                  ডিফল্ট পাসকোড: <span className="font-mono font-bold text-stone-700">1234</span> অথবা <span className="font-mono font-bold text-stone-700">admin123</span>
-                </p>
-              )}
             </div>
 
             <button
@@ -275,48 +257,7 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </form>
 
-          {/* Quick Demo Access */}
-          <div className="mt-5 pt-4 border-t border-stone-100">
-            <button
-              type="button"
-              disabled={isLockedOut}
-              onClick={() => {
-                setPinInput('1234');
-                adminLogin('1234');
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-stone-50 hover:bg-emerald-50 disabled:opacity-50 text-stone-700 hover:text-emerald-800 text-xs font-semibold rounded-xl border border-stone-200 hover:border-emerald-300 transition-all cursor-pointer"
-            >
-              <Key className="w-3.5 h-3.5 text-emerald-600" />
-              <span>এক ক্লিকে ডেমো লগইন (পিন: 1234)</span>
-            </button>
-          </div>
-
-          {/* Forgot PIN / Emergency Reset Section */}
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={() => setShowForgotHelp(!showForgotHelp)}
-              className="text-[11px] text-stone-500 hover:text-emerald-700 inline-flex items-center gap-1 font-medium transition-colors"
-            >
-              <HelpCircle className="w-3 h-3" />
-              <span>পাসকোড ভুলে গেছেন বা সমস্যা হচ্ছে?</span>
-            </button>
-
-            {showForgotHelp && (
-              <div className="mt-2.5 p-3.5 bg-stone-50 border border-stone-200 rounded-xl text-left text-xs space-y-2">
-                <p className="text-stone-700 leading-relaxed">
-                  যদি আপনি পূর্বে পাসকোড পরিবর্তন করে থাকেন এবং ভুলে গিয়ে থাকেন, নিচের বাটনে ক্লিক করে সাথে সাথে ডিফল্ট পিন <strong>1234</strong>-এ রিসেট করতে পারেন:
-                </p>
-                <button
-                  type="button"
-                  onClick={handleResetPin}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-white hover:bg-stone-100 text-stone-800 font-bold rounded-lg border border-stone-300 shadow-2xs transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>পিন রিসেট করে 1234 করুন</span>
-                </button>
-              </div>
-            )}
+           )}
           </div>
         </div>
       </div>
@@ -975,13 +916,13 @@ export const AdminDashboard: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={settingsForm.adminPin || '1234'}
+                value={settingsForm.adminPin || ''}
                 onChange={(e) => setSettingsForm({ ...settingsForm, adminPin: e.target.value })}
                 className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 font-mono tracking-wider"
-                placeholder="যেমন: 1234"
+                placeholder="একটি শক্তিশালী পাসকোড দিন"
               />
               <p className="text-[11px] text-stone-500 mt-1">
-                এই পিন দিয়ে অ্যাডমিন প্যানেলে লগইন করবেন। (ডিফল্ট: 1234)
+                এই পাসকোড দিয়ে অ্যাডমিন প্যানেলে লগইন করবেন। পাসকোড ফাঁকা রাখলে অ্যাডমিন লগইন কাজ করবে না।
               </p>
             </div>
           </div>
@@ -1030,11 +971,6 @@ export const AdminDashboard: React.FC = () => {
               <div>
                 <strong>সম্পূর্ণ ঠিকানা:</strong> {viewingOrder.address.formattedFullAddress}
               </div>
-              {viewingOrder.address.landmark && (
-                <div className="text-amber-800 font-semibold">
-                  <strong>ল্যান্ডমার্ক:</strong> {viewingOrder.address.landmark}
-                </div>
-              )}
               {viewingOrder.orderNote && (
                 <div className="text-stone-600 italic">
                   <strong>নোট:</strong> "{viewingOrder.orderNote}"
@@ -1070,11 +1006,19 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="flex justify-between items-center pt-3 border-t">
               <button
-                onClick={() => window.print()}
-                className="bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                onClick={() => {
+                  if (!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)) {
+                    showToast('অর্ডার Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে');
+                    return;
+                  }
+                  window.print();
+                }}
+                disabled={!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)}
+                className="bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                title={['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status) ? 'ইনভয়েস প্রিন্ট/Save as PDF' : 'Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে'}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>ইনভয়েস প্রিন্ট</span>
+                <span>ইনভয়েস</span>
               </button>
 
               <button
