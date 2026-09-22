@@ -600,27 +600,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const token = getSupabaseAccessToken();
         if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch(`/rest/v1/halal_orders?order_code=eq.${encodeURIComponent(orderId)}`, {
-          method: 'PATCH',
+        await supabaseFetch('/rest/v1/rpc/admin_update_halal_order_status', {
+          method: 'POST',
           token,
-          body: { status, updated_at: new Date().toISOString() },
+          body: { p_order_code: orderId, p_status: status },
         });
-
-        if (status === 'cancelled' && current.status !== 'cancelled') {
-          const refreshedProducts = await supabaseFetch<any[]>(
-            '/rest/v1/halal_products?select=id,stock',
-            { token }
-          );
-          const stockMap = new Map((refreshedProducts || []).map((product) => [product.id, Number(product.stock || 0)]));
-          for (const item of current.items) {
-            const latestStock = stockMap.get(item.productId) || 0;
-            await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(item.productId)}`, {
-              method: 'PATCH',
-              token,
-              body: { stock: latestStock + item.quantity, updated_at: new Date().toISOString() },
-            });
-          }
-        }
         showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
       } catch (error) {
         console.error('Order status update failed:', error);
