@@ -165,26 +165,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const parsed: Category[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasParentProperty = parsed.some((c) => 'parentId' in c);
-          if (!hasParentProperty || parsed.length <= 5) {
-            const merged = [...INITIAL_CATEGORIES];
-            for (const item of parsed) {
-              const idx = merged.findIndex((m) => m.id === item.id);
-              if (idx >= 0) {
-                merged[idx] = {
-                  ...merged[idx],
-                  ...item,
-                  parentId: item.parentId !== undefined ? item.parentId : merged[idx].parentId,
-                };
-              } else {
-                merged.push({ ...item, parentId: item.parentId || null });
-              }
-            }
-            return merged;
-          }
-          return parsed.map((c) => ({
-            ...c,
-            parentId: c.parentId !== undefined ? c.parentId : null,
+          // Stored categories are the source of truth. Do not merge initial
+          // categories back in after an admin intentionally deletes one.
+          const validIds = new Set(parsed.map((category) => category.id));
+          const normalized = parsed
+            .filter((category) => Boolean(category?.id && category?.nameBn))
+            .map((category, index) => ({
+              ...category,
+              parentId:
+                category.parentId && validIds.has(category.parentId)
+                  ? category.parentId
+                  : null,
+              order: Number.isFinite(category.order) ? category.order : index,
+              isActive: category.isActive !== false,
+              slug: String(category.slug || category.nameEn || category.nameBn).trim(),
+            }));
+
+          return normalized.map((category) => ({
+            ...category,
+            parentId: category.parentId === category.id ? null : category.parentId,
           }));
         }
       } catch (e) {
@@ -581,7 +580,37 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    // 2. Slug uniqueness check
+    // 2. Parent must exist.
+    if (updated.parentId) {
+      const parentExists = categories.some((c) => c.id === updated.parentId);
+      if (!parentExists) {
+        showToast('নির্বাচিত প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি');
+        return { success: false, message: 'প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি' };
+      }
+    }
+
+    // 3. Prevent duplicate names under the same parent.
+    if (updated.nameBn !== undefined || updated.parentId !== undefined) {
+      const current = categories.find((c) => c.id === id);
+      const targetName = (updated.nameBn ?? current?.nameBn ?? '').trim().toLowerCase();
+      const targetParentId = updated.parentId !== undefined
+        ? (updated.parentId || null)
+        : (current?.parentId || null);
+
+      const duplicate = categories.some(
+        (c) =>
+          c.id !== id &&
+          (c.parentId || null) === targetParentId &&
+          c.nameBn.trim().toLowerCase() === targetName
+      );
+
+      if (duplicate) {
+        showToast('একই প্যারেন্টের অধীনে এই নামে আরেকটি ক্যাটাগরি আছে');
+        return { success: false, message: 'একই প্যারেন্টের অধীনে নামটি ইতিমধ্যে ব্যবহৃত হয়েছে' };
+      }
+    }
+
+    // 4. Slug uniqueness check
     if (updated.slug) {
       const slugDuplicate = categories.some(
         (c) => c.id !== id && c.slug.toLowerCase() === updated.slug?.trim().toLowerCase()
