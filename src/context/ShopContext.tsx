@@ -827,6 +827,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই।' };
       }
       setSupabaseAccessToken(auth.access_token);
+      setIsAdminAuthenticated(true);
+      sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
