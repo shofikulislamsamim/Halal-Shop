@@ -63,7 +63,6 @@ export const AdminDashboard: React.FC = () => {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [isCapsLockOn, setIsCapsLockOn] = useState(false);
-  const [showForgotHelp, setShowForgotHelp] = useState(false);
 
   // Lockout Countdown Timer Effect
   useEffect(() => {
