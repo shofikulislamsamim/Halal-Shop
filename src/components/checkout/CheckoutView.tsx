@@ -83,6 +83,8 @@ export const CheckoutView: React.FC = () => {
   const [phoneError, setPhoneError] = useState('');
   const [nameError, setNameError] = useState('');
   const [addressIncompleteError, setAddressIncompleteError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   // Delivery charge calculation
   const isDhaka =
@@ -171,28 +173,38 @@ export const CheckoutView: React.FC = () => {
   };
 
   // Final submit after confirmation
-  const handleConfirmFinalOrder = () => {
-    if (!validateForm()) {
-      setIsReviewingAddress(false);
+  const handleConfirmFinalOrder = async () => {
+    if (!validateForm() || isSubmitting) {
+      if (!validateForm()) setIsReviewingAddress(false);
       return;
     }
+
+    setIsSubmitting(true);
+    setSubmitError('');
 
     const finalAddress = {
       ...address,
       formattedFullAddress: formatAddress(address),
     };
 
-    placeOrder({
-      customerName: customerName.trim(),
-      mobile: sanitizeBdPhone(mobile),
-      altMobile: altMobile.trim() ? sanitizeBdPhone(altMobile) : undefined,
-      address: finalAddress,
-      items: checkoutItems,
-      subtotal: itemsSubtotal,
-      deliveryCharge,
-      total: totalAmount,
-      orderNote: orderNote.trim() || undefined,
-    });
+    try {
+      await placeOrder({
+        customerName: customerName.trim(),
+        mobile: sanitizeBdPhone(mobile),
+        altMobile: altMobile.trim() ? sanitizeBdPhone(altMobile) : undefined,
+        address: finalAddress,
+        items: checkoutItems,
+        subtotal: itemsSubtotal,
+        deliveryCharge,
+        total: totalAmount,
+        orderNote: orderNote.trim() || undefined,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'অর্ডার সংরক্ষণ করা যায়নি।';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (checkoutItems.length === 0) {
@@ -354,11 +366,17 @@ export const CheckoutView: React.FC = () => {
                   onClick={handleConfirmFinalOrder}
                   className="w-full sm:flex-1 py-3.5 px-6 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] order-1 sm:order-2"
                   id="checkout-confirm-final-btn"
+                  disabled={isSubmitting}
                 >
                   <CheckCircle2 className="w-5 h-5 text-amber-300" />
-                  <span>অর্ডার কনফার্ম করুন (ক্যাশ অন ডেলিভারি)</span>
+                  <span>{isSubmitting ? 'অর্ডার সংরক্ষণ হচ্ছে...' : 'অর্ডার কনফার্ম করুন (ক্যাশ অন ডেলিভারি)'}</span>
                 </button>
               </div>
+              {submitError && (
+                <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                  {submitError}
+                </div>
+              )}
             </div>
           ) : (
             /* STEP 1: CUSTOMER FORM & ADAPTIVE ADDRESS ENTRY */
