@@ -1033,7 +1033,51 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Settings update
   const updateSettings = (newSettings: Partial<WebsiteSettings>) => {
-    setSettings((prev) => ({ ...prev, ...newSettings }));
+    const previousSettings = settings;
+    const nextSettings = { ...previousSettings, ...newSettings };
+    setSettings(nextSettings);
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) {
+          throw new Error('Admin session is not available.');
+        }
+
+        const deliverySettings = {
+          deliveryChargeDhaka: nextSettings.deliveryChargeDhaka,
+          deliveryChargeOutsideDhaka: nextSettings.deliveryChargeOutsideDhaka,
+          freeDeliveryThreshold: nextSettings.freeDeliveryThreshold,
+          heroTitle: nextSettings.heroTitle,
+          heroSubtitle: nextSettings.heroSubtitle,
+          announcementText: nextSettings.announcementText || '',
+          isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
+          tagline: nextSettings.tagline,
+          facebookPage: nextSettings.facebookPage,
+          shopAddress: nextSettings.shopAddress,
+        };
+
+        await supabaseFetch('/rest/v1/halal_store_settings?id=eq.true', {
+          method: 'PATCH',
+          token,
+          body: {
+            store_name: nextSettings.shopName,
+            logo_url: nextSettings.logoUrl || null,
+            phone: nextSettings.contactNumber || null,
+            whatsapp: nextSettings.whatsappNumber || null,
+            about: nextSettings.footerNotice || null,
+            delivery_settings: deliverySettings,
+            updated_at: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        console.error('Settings update failed:', error);
+        setSettings(previousSettings);
+        showToast('সেটিংস সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
+        return;
+      }
+    })();
+
     showToast('ওয়েবসাইটের সেটিংস আপডেট করা হয়েছে');
   };
 
