@@ -27,7 +27,8 @@ import {
   supabaseSignIn,
   supabaseIsAdmin,
   supabaseSignOut,
-  setSupabaseAccessToken,
+  setSupabaseSession,
+  clearSupabaseSession,
 } from '../lib/supabase';
 
 interface ShopContextType {
@@ -361,11 +362,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setIsAdminAuthenticated(true);
           sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
         } else if (!allowed) {
-          setSupabaseAccessToken(null);
+          clearSupabaseSession();
           sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
         }
       } catch {
-        setSupabaseAccessToken(null);
+        clearSupabaseSession();
         sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
       }
     };
@@ -1119,7 +1120,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabaseSignOut(auth.access_token);
         return { success: false, message: 'এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই।' };
       }
-      setSupabaseAccessToken(auth.access_token);
+      setSupabaseSession(auth.access_token, auth.refresh_token);
       setIsAdminAuthenticated(true);
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
       return { success: true };
@@ -1148,7 +1149,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logoutAdmin = async () => {
     await supabaseSignOut(getSupabaseAccessToken());
-    setSupabaseAccessToken(null);
+    clearSupabaseSession();
     setIsAdminAuthenticated(false);
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
     showToast('অ্যাডমিন প্যানেল থেকে লগআউট করা হয়েছে');
