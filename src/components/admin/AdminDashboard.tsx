@@ -194,6 +194,10 @@ export const AdminDashboard: React.FC = () => {
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [productStockFilter, setProductStockFilter] = useState<'all' | 'out' | 'low' | 'in'>('all');
+  const [isProductFilterOpen, setIsProductFilterOpen] = useState(false);
 
   // Category modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -342,6 +346,29 @@ export const AdminDashboard: React.FC = () => {
       return searchable.includes(q);
     }
     return true;
+  });
+
+  const filteredProducts = products.filter((product) => {
+    if (productStatusFilter === 'active' && !product.isActive) return false;
+    if (productStatusFilter === 'inactive' && product.isActive) return false;
+    if (productStockFilter === 'out' && product.stock > 0) return false;
+    if (productStockFilter === 'low' && (product.stock <= 0 || product.stock > 3)) return false;
+    if (productStockFilter === 'in' && product.stock <= 3) return false;
+
+    const q = productSearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const category = categories.find((cat) => cat.id === product.categoryId);
+    const searchable = [
+      product.nameBn,
+      product.nameEn,
+      product.slug || '',
+      product.id,
+      product.unit || '',
+      category?.nameBn || '',
+      category?.nameEn || '',
+      category?.slug || '',
+    ].join(' ').toLowerCase();
+    return searchable.includes(q);
   });
 
   // Calculate order stats
@@ -968,29 +995,21 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================= */}
       {activeTab === 'products' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h2 className="text-base sm:text-lg font-bold text-stone-900">
-              সকল পণ্য ({products.length})
+              পণ্য ব্যবস্থাপনা ({filteredProducts.length}/{products.length})
             </h2>
             <button
               onClick={() => {
                 setEditingProduct({
-                  nameBn: '',
-                  nameEn: '',
-                  price: 0,
-                  regularPrice: 0,
-                  stock: 10,
+                  nameBn: '', nameEn: '', price: 0, regularPrice: 0, stock: 10,
                   categoryId: categories[0]?.id || '',
                   imageUrl: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=500&auto=format&fit=crop&q=60',
-                  descriptionBn: '',
-                  isActive: true,
-                  isFeatured: false,
-                  isPopular: false,
-                  unit: 'পিস',
+                  descriptionBn: '', isActive: true, isFeatured: false, isPopular: false, unit: 'পিস',
                 });
                 setIsProductModalOpen(true);
               }}
-              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-colors shadow-xs"
+              className="w-full sm:w-auto justify-center bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3.5 py-2 rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-colors shadow-xs"
               id="admin-add-product-btn"
             >
               <Plus className="w-4 h-4" />
@@ -998,95 +1017,89 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
 
+          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-stone-200">
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <div className="relative flex-1">
+                <input
+                  type="search"
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  placeholder="পণ্যের নাম, ইংরেজি নাম, slug, আইডি বা ক্যাটাগরি খুঁজুন..."
+                  className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+                  aria-label="পণ্য খুঁজুন"
+                />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {productSearchQuery && (
+                  <button type="button" onClick={() => setProductSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs p-1" aria-label="সার্চ পরিষ্কার করুন">✕</button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProductFilterOpen((open) => !open)}
+                className="sm:hidden w-full border border-stone-300 bg-stone-50 text-stone-700 rounded-xl px-3 py-2.5 text-xs font-bold flex items-center justify-between"
+                aria-expanded={isProductFilterOpen}
+              >
+                <span>ফিল্টার: {productStatusFilter === 'all' ? 'সব' : productStatusFilter === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'} · {productStockFilter === 'all' ? 'সব স্টক' : productStockFilter === 'out' ? 'স্টক শেষ' : productStockFilter === 'low' ? 'কম স্টক' : 'স্টকে আছে'}</span>
+                <span>{isProductFilterOpen ? '−' : '+'}</span>
+              </button>
+              <div className={`flex flex-col sm:flex-row gap-2 ${isProductFilterOpen ? 'flex' : 'hidden'} sm:flex`}>
+                <select value={productStatusFilter} onChange={(e) => setProductStatusFilter(e.target.value as typeof productStatusFilter)} className="bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden" aria-label="পণ্য স্ট্যাটাস ফিল্টার">
+                  <option value="all">সব স্ট্যাটাস</option><option value="active">সক্রিয়</option><option value="inactive">নিষ্ক্রিয়</option>
+                </select>
+                <select value={productStockFilter} onChange={(e) => setProductStockFilter(e.target.value as typeof productStockFilter)} className="bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden" aria-label="পণ্য স্টক ফিল্টার">
+                  <option value="all">সব স্টক</option><option value="in">স্টকে আছে</option><option value="low">কম স্টক (১–৩)</option><option value="out">স্টক শেষ</option>
+                </select>
+              </div>
+            </div>
+            {(productSearchQuery || productStatusFilter !== 'all' || productStockFilter !== 'all') && (
+              <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-stone-100">
+                <span className="text-[11px] text-stone-500">{filteredProducts.length}টি পণ্য পাওয়া গেছে</span>
+                <button type="button" onClick={() => { setProductSearchQuery(''); setProductStatusFilter('all'); setProductStockFilter('all'); setIsProductFilterOpen(false); }} className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800">ফিল্টার পরিষ্কার করুন</button>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="bg-stone-50 border-b border-stone-200 text-stone-600">
-                  <tr>
-                    <th className="p-3">ছবি ও নাম</th>
-                    <th className="p-3">ক্যাটাগরি</th>
-                    <th className="p-3">বিক্রয় মূল্য</th>
-                    <th className="p-3">স্টক</th>
-                    <th className="p-3">স্ট্যাটাস</th>
-                    <th className="p-3 text-right">একশন</th>
-                  </tr>
-                </thead>
+                <thead className="bg-stone-50 border-b border-stone-200 text-stone-600"><tr>
+                  <th className="p-3">ছবি ও নাম</th><th className="p-3">ক্যাটাগরি</th><th className="p-3">বিক্রয় মূল্য</th><th className="p-3">স্টক</th><th className="p-3">স্ট্যাটাস</th><th className="p-3 text-right">একশন</th>
+                </tr></thead>
                 <tbody className="divide-y divide-stone-100">
-                  {products.map((prod) => {
+                  {filteredProducts.length > 0 ? filteredProducts.map((prod) => {
                     const cat = categories.find((c) => c.id === prod.categoryId);
-                    return (
-                      <tr key={prod.id} className="hover:bg-stone-50/70">
-                        <td className="p-3">
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              src={prod.imageUrl}
-                              alt={prod.nameBn}
-                              className="w-10 h-10 rounded-lg object-cover bg-stone-100"
-                            />
-                            <div>
-                              <div className="font-bold text-stone-900">{prod.nameBn}</div>
-                              <div className="text-[11px] text-stone-400">{prod.nameEn}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-3 text-stone-600">{cat?.nameBn || 'অনির্দিষ্ট'}</td>
-                        <td className="p-3 font-bold text-stone-900">
-                          {formatPrice(prod.price)}
-                          {prod.regularPrice && (
-                            <span className="text-[10px] text-stone-400 line-through block font-normal">
-                              {formatPrice(prod.regularPrice)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`font-semibold ${
-                              prod.stock <= 3 ? 'text-rose-600' : 'text-stone-800'
-                            }`}
-                          >
-                            {prod.stock} {prod.unit || 'টি'}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                              prod.isActive
-                                ? 'bg-emerald-50 text-emerald-800'
-                                : 'bg-stone-100 text-stone-500'
-                            }`}
-                          >
-                            {prod.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right space-x-1.5">
-                          <button
-                            onClick={() => {
-                              setEditingProduct(prod);
-                              setIsProductModalOpen(true);
-                            }}
-                            className="p-1.5 text-stone-600 hover:text-emerald-700 hover:bg-stone-100 rounded-lg transition-colors"
-                            title="এডিট করুন"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`আপনি কি "${prod.nameBn}" পণ্যটি মুছে ফেলতে চান?`)) {
-                                deleteProduct(prod.id);
-                                showToast('পণ্যটি মুছে ফেলা হয়েছে');
-                              }
-                            }}
-                            className="p-1.5 text-stone-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="মুছে ফেলুন"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                    return <tr key={prod.id} className="hover:bg-stone-50/70">
+                      <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn}</div></div></div></td>
+                      <td className="p-3 text-stone-600">{cat?.nameBn || 'অনির্দিষ্ট'}</td>
+                      <td className="p-3 font-bold text-stone-900">{formatPrice(prod.price)}{prod.regularPrice ? <span className="text-[10px] text-stone-400 line-through block font-normal">{formatPrice(prod.regularPrice)}</span> : null}</td>
+                      <td className="p-3"><span className={`font-semibold ${prod.stock <= 3 ? 'text-rose-600' : 'text-stone-800'}`}>{prod.stock} {prod.unit || 'টি'}</span></td>
+                      <td className="p-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${prod.isActive ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-500'}`}>{prod.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}</span></td>
+                      <td className="p-3 text-right space-x-1.5"><button onClick={() => { setEditingProduct(prod); setIsProductModalOpen(true); }} className="p-1.5 text-stone-600 hover:text-emerald-700 hover:bg-stone-100 rounded-lg transition-colors" title="এডিট করুন"><Edit2 className="w-3.5 h-3.5" /></button><button onClick={() => { if (window.confirm(`আপনি কি "${prod.nameBn}" পণ্যটি মুছে ফেলতে চান?`)) { deleteProduct(prod.id); showToast('পণ্যটি মুছে ফেলা হয়েছে'); } }} className="p-1.5 text-stone-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="মুছে ফেলুন"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                    </tr>;
+                  }) : <tr><td colSpan={6} className="p-8 text-center text-stone-500">কোনো পণ্য পাওয়া যায়নি।</td></tr>}
                 </tbody>
               </table>
+            </div>
+
+            <div className="md:hidden divide-y divide-stone-100">
+              {filteredProducts.length > 0 ? filteredProducts.map((prod) => {
+                const cat = categories.find((c) => c.id === prod.categoryId);
+                return <div key={prod.id} className="p-3.5 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <img src={prod.imageUrl} alt={prod.nameBn} className="w-14 h-14 rounded-xl object-cover bg-stone-100 shrink-0" />
+                    <div className="min-w-0 flex-1"><div className="font-bold text-stone-900 truncate">{prod.nameBn}</div><div className="text-[11px] text-stone-400 truncate">{prod.nameEn || '—'}</div><div className="text-[11px] text-stone-500 mt-1 truncate">{cat?.nameBn || 'অনির্দিষ্ট'}</div></div>
+                    <div className="text-right shrink-0"><div className="font-black text-stone-900">{formatPrice(prod.price)}</div>{prod.regularPrice ? <div className="text-[10px] text-stone-400 line-through">{formatPrice(prod.regularPrice)}</div> : null}</div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className={`font-semibold ${prod.stock <= 3 ? 'text-rose-600' : 'text-stone-700'}`}>স্টক: {prod.stock} {prod.unit || 'টি'}</span>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${prod.isActive ? 'bg-emerald-50 text-emerald-800' : 'bg-stone-100 text-stone-500'}`}>{prod.isActive ? 'সক্রিয়' : 'নিষ্ক্রিয়'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1 border-t border-stone-100">
+                    <button type="button" onClick={() => { setEditingProduct(prod); setIsProductModalOpen(true); }} className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5"><Edit2 className="w-3.5 h-3.5" />এডিট</button>
+                    <button type="button" onClick={() => { if (window.confirm(`আপনি কি "${prod.nameBn}" পণ্যটি মুছে ফেলতে চান?`)) { deleteProduct(prod.id); showToast('পণ্যটি মুছে ফেলা হয়েছে'); } }} className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3 py-2 rounded-lg text-xs font-semibold inline-flex items-center justify-center gap-1.5"><Trash2 className="w-3.5 h-3.5" />মুছে ফেলুন</button>
+                  </div>
+                </div>;
+              }) : <div className="p-8 text-center text-stone-500 text-sm">কোনো পণ্য পাওয়া যায়নি।</div>}
             </div>
           </div>
         </div>
