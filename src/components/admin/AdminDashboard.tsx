@@ -311,6 +311,9 @@ export const AdminDashboard: React.FC = () => {
                       setAdminPassword(e.target.value);
                       if (loginError) setLoginError('');
                     }}
+                    onKeyDown={(e) => setIsCapsLockOn(e.getModifierState('CapsLock'))}
+                    onKeyUp={(e) => setIsCapsLockOn(e.getModifierState('CapsLock'))}
+                    onBlur={() => setIsCapsLockOn(false)}
                     placeholder={isLockedOut ? `লক করা আছে (${lockoutSeconds}s)` : 'Admin password'}
                     className="w-full bg-white text-stone-900 text-sm px-4 py-3 pr-11 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
                     autoComplete="current-password"
