@@ -296,7 +296,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
               label,
               value: String(value ?? ''),
             })),
-            isFeatured: false,
+            isFeatured: product.is_featured === true,
+            isPopular: product.is_popular === true,
             isActive: product.is_active !== false,
           })));
         }
@@ -644,6 +645,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             description: newProduct.descriptionBn || null,
             specs: Object.fromEntries((newProduct.specifications || []).map((spec) => [spec.label, spec.value])),
             is_active: newProduct.isActive !== false,
+            is_featured: newProduct.isFeatured === true,
+            is_popular: newProduct.isPopular === true,
           },
         });
       } catch (error) {
@@ -682,6 +685,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             description: nextProduct.descriptionBn || null,
             specs: Object.fromEntries((nextProduct.specifications || []).map((spec) => [spec.label, spec.value])),
             is_active: nextProduct.isActive !== false,
+            is_featured: nextProduct.isFeatured === true,
+            is_popular: nextProduct.isPopular === true,
           },
         });
       } catch (error) {
