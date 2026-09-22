@@ -24,6 +24,10 @@ import {
   getSupabaseAccessToken,
   isSupabaseConfigured,
   supabaseFetch,
+  supabaseSignIn,
+  supabaseIsAdmin,
+  supabaseSignOut,
+  setSupabaseAccessToken,
 } from '../lib/supabase';
 
 interface ShopContextType {
@@ -94,9 +98,9 @@ interface ShopContextType {
   // Admin Auth
   isAdminAuthenticated: boolean;
   isAdminLoggedIn: boolean;
-  loginAdmin: (password: string) => boolean;
-  adminLogin: (password: string) => boolean;
-  verifyAdminLogin: (password: string) => { success: boolean; message?: string };
+  loginAdmin: (email: string, password: string) => Promise<boolean>;
+  adminLogin: (email: string, password: string) => Promise<boolean>;
+  verifyAdminLogin: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logoutAdmin: () => void;
   adminLogout: () => void;
 
@@ -320,11 +324,30 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
-    return (
-      sessionStorage.getItem(STORAGE_KEYS.ADMIN_AUTH) === 'true'
-    );
-  });
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const restoreAdminSession = async () => {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) return;
+      try {
+        const allowed = await supabaseIsAdmin(token);
+        if (!cancelled && allowed) {
+          setIsAdminAuthenticated(true);
+          sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+        } else if (!allowed) {
+          setSupabaseAccessToken(null);
+          sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+        }
+      } catch {
+        setSupabaseAccessToken(null);
+        sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
+      }
+    };
+    void restoreAdminSession();
+    return () => { cancelled = true; };
+  }, []);
 
   // Save to LocalStorage on change
   useEffect(() => {
@@ -790,65 +813,50 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     showToast('ওয়েবসাইটের সেটিংস আপডেট করা হয়েছে');
   };
 
-  // Admin Auth Normalization & Validation Helper
-  const normalizeInput = (raw: string): string => {
-    if (!raw) return '';
-    // Strip zero-width, non-breaking, and invisible characters
-    let clean = raw.replace(/[\u200B-\u200D\uFEFF\u00A0\r\n\t]/g, '').trim();
-    // Normalize Bengali digits (০-৯) to English digits (0-9)
-    const bnToEn: Record<string, string> = {
-      '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
-      '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
-    };
-    clean = clean.replace(/[০-৯]/g, (d) => bnToEn[d] || d);
-    return clean;
+  // Supabase Admin Authentication
+  const verifyAdminLogin = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
+    if (!isSupabaseConfigured) return { success: false, message: 'Supabase সংযোগ কনফিগার করা নেই।' };
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) return { success: false, message: 'ইমেইল ও পাসওয়ার্ড দিন।' };
+
+    try {
+      const auth = await supabaseSignIn(normalizedEmail, password);
+      const allowed = await supabaseIsAdmin(auth.access_token);
+      if (!allowed) {
+        await supabaseSignOut(auth.access_token);
+        return { success: false, message: 'এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই।' };
+      }
+      setSupabaseAccessToken(auth.access_token);
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (/invalid login credentials/i.test(message)) {
+        return { success: false, message: 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।' };
+      }
+      return { success: false, message: 'অ্যাডমিন লগইন করা যায়নি। আবার চেষ্টা করুন।' };
+    }
   };
 
-  // Verify Admin Login Credentials
-  const verifyAdminLogin = (password: string): { success: boolean; message?: string } => {
-    if (!password || !password.trim()) {
-      return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড প্রদান করুন।' };
+  const loginAdmin = async (email: string, password: string): Promise<boolean> => {
+    const result = await verifyAdminLogin(email, password);
+    if (!result.success) {
+      showToast(result.message || 'অ্যাডমিন লগইন ব্যর্থ হয়েছে।');
+      return false;
     }
-
-    const configuredPin = String(settings.adminPin || '').trim();
-    const bootstrapPassword = 'HalalShop@2026';
-    const normalizedPassword = normalizeInput(password);
-    const normalizedConfiguredPin = normalizeInput(configuredPin);
-    if (!normalizedConfiguredPin && normalizedPassword !== bootstrapPassword) {
-      return {
-        success: false,
-        message: 'অ্যাডমিন পাসকোড কনফিগার করা নেই। সেটিংস থেকে একটি পাসকোড নির্ধারণ করুন।',
-      };
-    }
-
-    if (normalizedPassword !== bootstrapPassword && normalizedPassword !== normalizedConfiguredPin) {
-      return { success: false, message: 'ভুল অ্যাডমিন পাসকোড।' };
-    }
-
-    return { success: true };
-  };
-
-  // Admin Login Handler
-  const loginAdmin = (password: string): boolean => {
-    const result = verifyAdminLogin(password);
-    if (result.success) {
-      setIsAdminAuthenticated(true);
-      sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
-      safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
-      showToast('অ্যাডমিন লগইন সফল হয়েছে! স্বাগতম।');
-      return true;
-    }
-    showToast(result.message || 'অ্যাডমিন লগইন ব্যর্থ হয়েছে।');
-    return false;
+    setIsAdminAuthenticated(true);
+    sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
+    showToast('অ্যাডমিন লগইন সফল হয়েছে! স্বাগতম।');
+    return true;
   };
 
   const adminLogin = loginAdmin;
 
-const logoutAdmin = () => {
+  const logoutAdmin = async () => {
+    await supabaseSignOut(getSupabaseAccessToken());
+    setSupabaseAccessToken(null);
     setIsAdminAuthenticated(false);
     sessionStorage.removeItem(STORAGE_KEYS.ADMIN_AUTH);
-    safeStorageRemove(STORAGE_KEYS.ADMIN_AUTH);
-    showToast('অ্যাডমিন প্যানেল থেকে লগআউট করা হয়েছে');
+    showToast('অ্যাডমিন প্যানেল থেকে লগআউট করা হয়েছে');
     navigateTo('home');
   };
 
