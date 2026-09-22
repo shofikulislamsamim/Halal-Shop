@@ -43,6 +43,7 @@ export interface Product {
   id: string;
   nameBn: string;
   nameEn: string;
+  slug?: string;
   categoryId: string; // Primary category id
   categoryIds?: string[]; // Optional secondary category ids
   price: number;
