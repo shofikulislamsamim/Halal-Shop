@@ -71,6 +71,7 @@ export const AdminDashboard: React.FC = () => {
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, '');
@@ -107,7 +108,8 @@ export const AdminDashboard: React.FC = () => {
       setNewAdminPassword('');
       setConfirmAdminPassword('');
       window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-      setRecoveryMessage('পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।');
+      setPasswordResetSuccess(true);
+      setRecoveryMessage('');
     } catch {
       setRecoveryMessage('পাসওয়ার্ড পরিবর্তন করা যায়নি। রিসেট লিংকটি মেয়াদোত্তীর্ণ হলে নতুন রিসেট লিংক নিন।');
     } finally {
@@ -473,6 +475,12 @@ export const AdminDashboard: React.FC = () => {
             Supabase Admin account দিয়ে নিরাপদে লগইন করুন
           </p>
 
+          {passwordResetSuccess && (
+            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3 mb-4 leading-5">
+              পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -554,6 +562,7 @@ export const AdminDashboard: React.FC = () => {
               disabled={isLockedOut || isLoggingIn}
               onClick={() => {
                 setShowPasswordRecovery(true);
+                setPasswordResetSuccess(false);
                 setLoginError('');
                 setRecoveryMessage('');
               }}
