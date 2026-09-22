@@ -832,7 +832,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Orders Table */}
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead className="bg-stone-50 border-b border-stone-200 text-stone-600">
                   <tr>
@@ -906,6 +906,58 @@ export const AdminDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            <div className="md:hidden divide-y divide-stone-100">
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
+                  <div key={order.id} className="p-3.5 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-mono font-bold text-emerald-800 text-xs">#{order.id}</div>
+                        <div className="font-bold text-stone-900 mt-1 truncate">{order.customerName}</div>
+                        <div className="text-[11px] text-stone-500">{order.mobile}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-black text-stone-900">{formatPrice(order.total)}</div>
+                        <div className="text-[10px] text-stone-400 mt-0.5">{order.address.district}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={order.status}
+                        onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}
+                        className={`flex-1 min-w-0 text-xs font-semibold px-2.5 py-2 rounded-lg border focus:outline-hidden ${
+                          order.status === 'delivered'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : order.status === 'cancelled'
+                            ? 'bg-rose-50 text-rose-800 border-rose-300'
+                            : 'bg-amber-50 text-amber-900 border-amber-300'
+                        }`}
+                        aria-label={`অর্ডার ${order.id} স্ট্যাটাস`}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setViewingOrder(order)}
+                        className="shrink-0 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 rounded-lg text-xs font-semibold inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        বিস্তারিত
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-stone-500 text-sm">কোনো অর্ডার পাওয়া যায়নি।</div>
+              )}
             </div>
           </div>
         </div>
