@@ -607,11 +607,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         if (status === 'cancelled' && current.status !== 'cancelled') {
+          const refreshedProducts = await supabaseFetch<any[]>(
+            '/rest/v1/halal_products?select=id,stock',
+            { token }
+          );
+          const stockMap = new Map((refreshedProducts || []).map((product) => [product.id, Number(product.stock || 0)]));
           for (const item of current.items) {
+            const latestStock = stockMap.get(item.productId) || 0;
             await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(item.productId)}`, {
               method: 'PATCH',
               token,
-              body: { stock: Math.max(0, (products.find((product) => product.id === item.productId)?.stock || 0) + item.quantity), updated_at: new Date().toISOString() },
+              body: { stock: latestStock + item.quantity, updated_at: new Date().toISOString() },
             });
           }
         }
