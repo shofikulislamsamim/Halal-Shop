@@ -87,8 +87,8 @@ interface ShopContextType {
     deliveryCharge: number;
     total: number;
     orderNote?: string;
-  }) => Order;
-  getOrderByIdAndPhone: (orderId: string, phone: string) => Order | undefined;
+  }) => Promise<Order>;
+  getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => void;
 
   // Settings
@@ -349,6 +349,30 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (!isAdminAuthenticated || !isSupabaseConfigured) return;
+
+    let cancelled = false;
+    const loadRemoteOrders = async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token) return;
+        const remoteOrders = await supabaseFetch<any[]>(
+          '/rest/v1/halal_orders?select=*,halal_order_items(*)&order=created_at.desc',
+          { token }
+        );
+        if (!cancelled && Array.isArray(remoteOrders)) {
+          setOrders(remoteOrders.map(mapRemoteOrder));
+        }
+      } catch (error) {
+        console.error('Supabase orders load failed; keeping local fallback.', error);
+      }
+    };
+
+    void loadRemoteOrders();
+    return () => { cancelled = true; };
+  }, [isAdminAuthenticated]);
+
   // Save to LocalStorage on change
   useEffect(() => {
     safeStorageSet(STORAGE_KEYS.CART, JSON.stringify(cart));
@@ -453,7 +477,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Place Order
-  const placeOrder = (orderData: {
+  const mapRemoteOrder = (remote: any): Order => ({
+    id: remote.order_code,
+    createdAt: remote.created_at,
+    customerName: remote.customer_name,
+    mobile: remote.mobile,
+    altMobile: remote.alt_mobile || undefined,
+    address: remote.address as Order['address'],
+    items: Array.isArray(remote.halal_order_items)
+      ? remote.halal_order_items.map((item: any) => ({
+          productId: item.product_id,
+          nameBn: item.product_name,
+          price: Number(item.unit_price || 0),
+          quantity: Number(item.quantity || 0),
+          total: Number(item.subtotal || 0),
+          imageUrl: item.image_url || '',
+        }))
+      : [],
+    subtotal: Number(remote.subtotal || 0),
+    deliveryCharge: Number(remote.delivery_fee || 0),
+    total: Number(remote.total || 0),
+    paymentMethod: 'cash_on_delivery',
+    status: remote.status as OrderStatus,
+    orderNote: remote.order_note || undefined,
+  });
+
+  const placeOrder = async (orderData: {
     customerName: string;
     mobile: string;
     altMobile?: string;
@@ -463,128 +512,106 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     deliveryCharge: number;
     total: number;
     orderNote?: string;
-  }): Order => {
-    // Re-read the latest catalog state before accepting an order. The product
-    // objects carried by an old cart tab can otherwise contain stale prices/stock.
-    const latestProductsById = new Map(products.map((product) => [product.id, product]));
-    const normalizedItems: Order['items'] = [];
-    const requestedByProduct = new Map<string, number>();
-
-    for (const item of orderData.items) {
-      const latestProduct = latestProductsById.get(item.productId);
-      if (!latestProduct || !latestProduct.isActive) {
-        throw new Error(`পণ্যটি আর উপলব্ধ নেই: ${item.nameBn}`);
-      }
-
-      const quantity = Math.max(1, Math.floor(Number(item.quantity)));
-      const previousQuantity = requestedByProduct.get(item.productId) || 0;
-      const nextQuantity = previousQuantity + quantity;
-
-      if (nextQuantity > latestProduct.stock) {
-        throw new Error(`"${latestProduct.nameBn}" এর পর্যাপ্ত স্টক নেই।`);
-      }
-
-      requestedByProduct.set(item.productId, nextQuantity);
-      normalizedItems.push({
-        productId: latestProduct.id,
-        nameBn: latestProduct.nameBn,
-        price: latestProduct.price,
-        quantity,
-        total: latestProduct.price * quantity,
-        imageUrl: latestProduct.imageUrl,
-      });
+  }): Promise<Order> => {
+    if (!isSupabaseConfigured) {
+      throw new Error('অর্ডার নেওয়ার জন্য Supabase সংযোগ প্রয়োজন।');
     }
 
-    if (normalizedItems.length === 0) {
-      throw new Error('অর্ডারে অন্তত একটি বৈধ পণ্য থাকতে হবে।');
-    }
-
-    const calculatedSubtotal = normalizedItems.reduce((sum, item) => sum + item.total, 0);
-    const normalizedDeliveryCharge = Math.max(0, Number(orderData.deliveryCharge) || 0);
-    const calculatedTotal = calculatedSubtotal + normalizedDeliveryCharge;
-
-    if (Math.abs(calculatedTotal - Number(orderData.total)) > 0.01) {
-      throw new Error('অর্ডারের মোট মূল্য পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
-    }
-
-    // Generate a readable, collision-resistant order ID.
-    // Keep checking against existing orders so a duplicate ID is not created.
-    const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    let newId = '';
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      const randomPart = Math.floor(1000 + Math.random() * 9000);
-      const candidate = `HS-${datePart}-${randomPart}`;
-      if (!orders.some((existingOrder) => existingOrder.id === candidate)) {
-        newId = candidate;
-        break;
-      }
-    }
-
-    // Extremely unlikely fallback if all generated candidates collide.
-    if (!newId) {
-      newId = `HS-${datePart}-${Date.now().toString().slice(-6)}`;
-    }
-
-    const newOrder: Order = {
-      id: newId,
-      createdAt: new Date().toISOString(),
-      customerName: orderData.customerName,
+    const payload = {
+      customerName: orderData.customerName.trim(),
       mobile: orderData.mobile,
       altMobile: orderData.altMobile,
       address: orderData.address,
-      items: normalizedItems,
-      subtotal: calculatedSubtotal,
-      deliveryCharge: normalizedDeliveryCharge,
-      total: calculatedTotal,
-      paymentMethod: 'cash_on_delivery',
-      status: 'pending',
+      items: orderData.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
+      deliveryCharge: orderData.deliveryCharge,
       orderNote: orderData.orderNote,
     };
 
-    setOrders((prev) => [newOrder, ...prev]);
-    setLastCreatedOrder(newOrder);
+    try {
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/create_halal_order', {
+        method: 'POST',
+        body: { payload },
+      });
 
-    // Reduce product stock accordingly
-    setProducts((prev) =>
-      prev.map((prod) => {
-        const orderedQuantity = requestedByProduct.get(prod.id);
-        if (orderedQuantity) {
-          return { ...prod, stock: Math.max(0, prod.stock - orderedQuantity) };
-        }
-        return prod;
-      })
-    );
+      const remoteOrder = mapRemoteOrder(remote);
+      setOrders((prev) => [remoteOrder, ...prev.filter((order) => order.id !== remoteOrder.id)]);
+      setLastCreatedOrder(remoteOrder);
 
-    // If checkout was from cart, clear cart
-    if (!directCheckoutItem) {
-      clearCart();
-    } else {
-      setDirectCheckoutItem(null);
+      const stockByProduct = new Map<string, number>();
+      for (const item of orderData.items) {
+        stockByProduct.set(item.productId, (stockByProduct.get(item.productId) || 0) + Math.max(1, Math.floor(item.quantity)));
+      }
+      setProducts((prev) =>
+        prev.map((product) => {
+          const quantity = stockByProduct.get(product.id);
+          return quantity ? { ...product, stock: Math.max(0, product.stock - quantity) } : product;
+        })
+      );
+
+      if (!directCheckoutItem) clearCart();
+      else setDirectCheckoutItem(null);
+
+      navigateTo('order-confirmation');
+      return remoteOrder;
+    } catch (error) {
+      console.error('Order creation failed:', error);
+      const message = error instanceof Error ? error.message : '';
+      if (/insufficient stock|unavailable/i.test(message)) {
+        throw new Error('দুঃখিত, নির্বাচিত কোনো পণ্যের স্টক পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
+      }
+      throw new Error('অর্ডার সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।');
     }
-
-    navigateTo('order-confirmation');
-    return newOrder;
   };
 
   // Order tracking search
-  const getOrderByIdAndPhone = (orderId: string, phone: string): Order | undefined => {
-    const cleanId = orderId.trim().toUpperCase();
-    const cleanPhone = phone.replace(/[\s\-+]/g, '');
+  const getOrderByIdAndPhone = async (orderId: string, phone: string): Promise<Order | undefined> => {
+    if (!isSupabaseConfigured) return orders.find((order) => order.id.toUpperCase() === orderId.trim().toUpperCase());
 
-    return orders.find((o) => {
-      const matchId = o.id.toUpperCase() === cleanId;
-      const oPhoneClean = o.mobile.replace(/[\s\-+]/g, '');
-      const matchPhone = oPhoneClean.endsWith(cleanPhone) || cleanPhone.endsWith(oPhoneClean);
-      return matchId && matchPhone;
-    });
+    try {
+      const cleanPhone = phone.replace(/[\s\-+]/g, '');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/get_halal_order_by_code_phone', {
+        method: 'POST',
+        body: {
+          p_order_code: orderId.trim().toUpperCase(),
+          p_mobile: cleanPhone,
+        },
+      });
+      if (!remote) return undefined;
+      return mapRemoteOrder(remote);
+    } catch (error) {
+      console.error('Order tracking lookup failed:', error);
+      return undefined;
+    }
   };
 
   // Admin order status update
   const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+    const current = orders.find((order) => order.id === orderId);
+    if (!current) return;
+
     setOrders((prev) =>
       prev.map((order) => (order.id === orderId ? { ...order, status } : order))
     );
-    showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
+
+    void (async () => {
+      try {
+        const token = getSupabaseAccessToken();
+        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+        await supabaseFetch(`/rest/v1/halal_orders?order_code=eq.${encodeURIComponent(orderId)}`, {
+          method: 'PATCH',
+          token,
+          body: { status, updated_at: new Date().toISOString() },
+        });
+        showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
+      } catch (error) {
+        console.error('Order status update failed:', error);
+        setOrders((prev) => prev.map((order) => (order.id === orderId ? current : order)));
+        showToast('অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি।');
+      }
+    })();
   };
 
   // Product CRUD
