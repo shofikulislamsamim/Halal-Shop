@@ -605,6 +605,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           token,
           body: { status, updated_at: new Date().toISOString() },
         });
+
+        if (status === 'cancelled' && current.status !== 'cancelled') {
+          for (const item of current.items) {
+            await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(item.productId)}`, {
+              method: 'PATCH',
+              token,
+              body: { stock: Math.max(0, (products.find((product) => product.id === item.productId)?.stock || 0) + item.quantity), updated_at: new Date().toISOString() },
+            });
+          }
+        }
         showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
       } catch (error) {
         console.error('Order status update failed:', error);
