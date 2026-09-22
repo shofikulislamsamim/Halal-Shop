@@ -189,6 +189,7 @@ export const AdminDashboard: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
 
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -753,34 +754,80 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'orders' && (
         <div className="space-y-4">
           {/* Filters Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={orderSearchQuery}
-                onChange={(e) => setOrderSearchQuery(e.target.value)}
-                placeholder="অর্ডার আইডি, গ্রাহকের নাম বা মোবাইল নাম্বার খুঁজুন..."
-                className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-3 py-2 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
-              />
-              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-stone-200">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <div className="relative flex-1">
+                <input
+                  type="search"
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  placeholder="অর্ডার, নাম, মোবাইল বা ঠিকানা খুঁজুন..."
+                  className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+                  aria-label="অর্ডার খুঁজুন"
+                />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {orderSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setOrderSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs p-1"
+                    aria-label="সার্চ পরিষ্কার করুন"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsOrderFilterOpen((open) => !open)}
+                className="sm:hidden w-full border border-stone-300 bg-stone-50 text-stone-700 rounded-xl px-3 py-2.5 text-xs font-bold flex items-center justify-between"
+                aria-expanded={isOrderFilterOpen}
+              >
+                <span>স্ট্যাটাস: {orderStatusFilter === 'all' ? 'সকল অর্ডার' : orderStatusFilter}</span>
+                <span>{isOrderFilterOpen ? '−' : '+'}</span>
+              </button>
+
+              <div className={`flex items-center gap-2 ${isOrderFilterOpen ? 'flex' : 'hidden'} sm:flex`}>
+                <span className="text-xs text-stone-500 whitespace-nowrap hidden sm:inline">স্ট্যাটাস:</span>
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => {
+                    setOrderStatusFilter(e.target.value);
+                    setIsOrderFilterOpen(false);
+                  }}
+                  className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden"
+                  aria-label="অর্ডার স্ট্যাটাস ফিল্টার"
+                >
+                  <option value="all">সকল অর্ডার</option>
+                  <option value="pending">পেন্ডিং (Pending)</option>
+                  <option value="confirmed">নিশ্চিত (Confirmed)</option>
+                  <option value="processing">প্রসেসিং (Processing)</option>
+                  <option value="shipped">ডেলিভারির পথে (Shipped)</option>
+                  <option value="delivered">ডেলিভারি সম্পন্ন (Delivered)</option>
+                  <option value="cancelled">বাতিল (Cancelled)</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-500 whitespace-nowrap">স্ট্যাটাস:</span>
-              <select
-                value={orderStatusFilter}
-                onChange={(e) => setOrderStatusFilter(e.target.value)}
-                className="bg-stone-50 text-stone-800 text-xs px-3 py-2 rounded-xl border border-stone-300 focus:outline-hidden"
-              >
-                <option value="all">সকল অর্ডার</option>
-                <option value="pending">পেন্ডিং (Pending)</option>
-                <option value="confirmed">নিশ্চিত (Confirmed)</option>
-                <option value="processing">প্রসেসিং (Processing)</option>
-                <option value="shipped">ডেলিভারির পথে (Shipped)</option>
-                <option value="delivered">ডেলিভারি সম্পন্ন (Delivered)</option>
-                <option value="cancelled">বাতিল (Cancelled)</option>
-              </select>
-            </div>
+            {(orderSearchQuery || orderStatusFilter !== 'all') && (
+              <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-stone-100">
+                <span className="text-[11px] text-stone-500">
+                  {filteredOrders.length}টি অর্ডার পাওয়া গেছে
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOrderSearchQuery('');
+                    setOrderStatusFilter('all');
+                    setIsOrderFilterOpen(false);
+                  }}
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800"
+                >
+                  ফিল্টার পরিষ্কার করুন
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Orders Table */}
