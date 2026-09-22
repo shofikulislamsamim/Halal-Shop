@@ -256,8 +256,6 @@ export const AdminDashboard: React.FC = () => {
               <span>{isLockedOut ? `লক রয়েছে (${lockoutSeconds}s)` : 'প্রবেশ করুন (Login)'}</span>
             </button>
           </form>
-
-           )}
           </div>
         </div>
       </div>
