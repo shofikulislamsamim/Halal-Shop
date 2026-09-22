@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { Product, Category, Order, OrderStatus, ShopSettings } from '../../types';
 import { formatPrice } from '../../utils/helpers';
+import { supabaseSendPasswordResetEmail } from '../../lib/supabase';
 import {
   Package,
   ShoppingBag,
@@ -63,6 +64,9 @@ export const AdminDashboard: React.FC = () => {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [isCapsLockOn, setIsCapsLockOn] = useState(false);
+  const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
+  const [isSendingRecovery, setIsSendingRecovery] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState('');
 
   // Lockout Countdown Timer Effect
   useEffect(() => {
@@ -74,6 +78,30 @@ export const AdminDashboard: React.FC = () => {
   }, [lockoutSeconds]);
 
   // Handle Login
+  const handlePasswordRecovery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = adminEmail.trim();
+
+    if (!email) {
+      setRecoveryMessage('অ্যাডমিন ইমেইল দিন।');
+      return;
+    }
+
+    setIsSendingRecovery(true);
+    setRecoveryMessage('');
+
+    try {
+      const recoveryRedirect = new URL(import.meta.env.BASE_URL || '/Halal-Shop/', window.location.origin).toString();
+      await supabaseSendPasswordResetEmail(email, recoveryRedirect);
+      setRecoveryMessage('পাসওয়ার্ড রিসেট করার নির্দেশনা আপনার ইমেইলে পাঠানো হয়েছে। ইমেইল না পেলে Spam/Junk ফোল্ডারও দেখুন।');
+    } catch {
+      // Keep the response neutral so the login screen does not reveal whether an email exists.
+      setRecoveryMessage('যদি এই ইমেইলটি অ্যাডমিন অ্যাকাউন্টের সাথে যুক্ত থাকে, তাহলে পাসওয়ার্ড রিসেট করার নির্দেশনা পাঠানো হয়েছে।');
+    } finally {
+      setIsSendingRecovery(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -265,6 +293,68 @@ export const AdminDashboard: React.FC = () => {
   if (!isAdminLoggedIn) {
     const isLockedOut = lockoutSeconds > 0;
 
+    if (showPasswordRecovery) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-16">
+          <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm text-center">
+            <div className="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xs">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-stone-900 mb-1">পাসওয়ার্ড রিসেট</h1>
+            <p className="text-stone-500 text-xs sm:text-sm mb-6">
+              অ্যাডমিন অ্যাকাউন্টের ইমেইলে রিসেট নির্দেশনা পাঠানো হবে।
+            </p>
+
+            <form onSubmit={handlePasswordRecovery} className="space-y-4 text-left">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">অ্যাডমিন ইমেইল</label>
+                <input
+                  type="email"
+                  value={adminEmail}
+                  disabled={isSendingRecovery}
+                  onChange={(e) => {
+                    setAdminEmail(e.target.value);
+                    if (recoveryMessage) setRecoveryMessage('');
+                  }}
+                  placeholder="Admin email"
+                  className="w-full bg-white text-stone-900 text-sm px-4 py-3 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+                  autoComplete="email"
+                  autoFocus
+                />
+              </div>
+
+              {recoveryMessage && (
+                <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-3 leading-5">
+                  {recoveryMessage}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSendingRecovery}
+                className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-sm transition-colors shadow-xs flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{isSendingRecovery ? 'ইমেইল পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isSendingRecovery}
+                onClick={() => {
+                  setShowPasswordRecovery(false);
+                  setRecoveryMessage('');
+                }}
+                className="w-full text-emerald-700 hover:text-emerald-800 font-semibold text-xs py-2"
+              >
+                ← লগইনে ফিরে যান
+              </button>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-md mx-auto px-4 py-16">
         <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm text-center">
@@ -353,6 +443,19 @@ export const AdminDashboard: React.FC = () => {
               )}
 
             </div>
+
+            <button
+              type="button"
+              disabled={isLockedOut || isLoggingIn}
+              onClick={() => {
+                setShowPasswordRecovery(true);
+                setLoginError('');
+                setRecoveryMessage('');
+              }}
+              className="w-full text-emerald-700 hover:text-emerald-800 font-semibold text-xs py-1.5"
+            >
+              পাসওয়ার্ড ভুলে গেছেন?
+            </button>
 
             <button
               type="submit"
