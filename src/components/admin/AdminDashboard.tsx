@@ -54,8 +54,10 @@ export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'categories' | 'settings'>('orders');
 
   // Login form state
-  const [pinInput, setPinInput] = useState('');
-  const [showPin, setShowPin] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('sk82716102@gmail.com');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
@@ -72,7 +74,7 @@ export const AdminDashboard: React.FC = () => {
   }, [lockoutSeconds]);
 
   // Handle Login
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Check if temporarily locked out
@@ -81,33 +83,31 @@ export const AdminDashboard: React.FC = () => {
       return;
     }
 
-    const trimmed = pinInput.trim();
-    if (!trimmed) {
-      setLoginError('অনুগ্রহ করে অ্যাডমিন পিন বা পাসকোড দিন।');
+    if (!adminEmail.trim() || !adminPassword) {
+      setLoginError('অ্যাডমিন ইমেইল ও পাসওয়ার্ড দিন।');
       return;
     }
 
-    // Verify credentials with context helper
-    const check = verifyAdminLogin(trimmed);
+    setIsLoggingIn(true);
+    setLoginError('');
+    const check = await verifyAdminLogin(adminEmail, adminPassword);
     if (check.success) {
-      adminLogin(trimmed);
-      setLoginError('');
-      setPinInput('');
+      await adminLogin(adminEmail, adminPassword);
+      setAdminPassword('');
       setFailedAttempts(0);
       setLockoutSeconds(0);
     } else {
       const nextAttempts = failedAttempts + 1;
       setFailedAttempts(nextAttempts);
-
       if (nextAttempts >= 5) {
         setLockoutSeconds(30);
-        setLoginError('একটানা ৫ বার ভুল পাসকোড দেওয়া হয়েছে! নিরাপত্তার স্বার্থে ৩০ সেকেন্ডের জন্য চেষ্টা স্থগিত রাখা হলো।');
+        setLoginError('একটানা ৫ বার ভুল লগইন হয়েছে। ৩০ সেকেন্ড অপেক্ষা করুন।');
       } else {
-        const remaining = 5 - nextAttempts;
-        setLoginError(`${check.message || 'ভুল পাসকোড!'} (ভুল চেষ্টা: ${nextAttempts}/৫, আর ${remaining} বার সুযোগ আছে)`);
+        setLoginError(check.message || 'ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।');
       }
     }
-  };
+    setIsLoggingIn(false);
+
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
@@ -160,14 +160,14 @@ export const AdminDashboard: React.FC = () => {
             অ্যাডমিন প্যানেল লগইন
           </h1>
           <p className="text-stone-500 text-xs sm:text-sm mb-6">
-            দোকানের অর্ডার ও পণ্য পরিচালনা করতে অ্যাডমিন পাসকোড দিন
+            Supabase Admin account দিয়ে নিরাপদে লগইন করুন
           </p>
 
           <form onSubmit={handleLogin} className="space-y-4 text-left">
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-stone-700">
-                  অ্যাডমিন পাসকোড / পিন (PIN)
+                  অ্যাডমিন ইমেইল ও পাসওয়ার্ড
                 </label>
                 {failedAttempts > 0 && !isLockedOut && (
                   <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
@@ -176,43 +176,33 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
 
-              <div className="relative">
+              <div className="space-y-3">
                 <input
-                  type={showPin ? 'text' : 'password'}
-                  value={pinInput}
-                  disabled={isLockedOut}
-                  onChange={(e) => {
-                    setPinInput(e.target.value);
-                    if (loginError) setLoginError('');
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.getModifierState) {
-                      setIsCapsLockOn(e.getModifierState('CapsLock'));
-                    }
-                  }}
-                  onKeyUp={(e) => {
-                    if (e.getModifierState) {
-                      setIsCapsLockOn(e.getModifierState('CapsLock'));
-                    }
-                  }}
-                  placeholder={isLockedOut ? `লক করা আছে (${lockoutSeconds}s)` : 'যেমন: 1234'}
-                  className={`w-full bg-white text-stone-900 text-center text-lg font-mono tracking-widest px-10 py-3 rounded-xl border ${
-                    loginError ? 'border-rose-300 focus:border-rose-500' : 'border-stone-300 focus:border-emerald-600'
-                  } ${
-                    isLockedOut ? 'bg-stone-100 cursor-not-allowed opacity-60' : ''
-                  } focus:outline-hidden focus:ring-2 focus:ring-emerald-100 transition-all`}
-                  id="admin-pin-input"
-                  autoFocus={!isLockedOut}
+                  type="email"
+                  value={adminEmail}
+                  disabled={isLockedOut || isLoggingIn}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  placeholder="Admin email"
+                  className="w-full bg-white text-stone-900 text-sm px-4 py-3 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+                  autoComplete="username"
                 />
-                <button
-                  type="button"
-                  disabled={isLockedOut}
-                  onClick={() => setShowPin(!showPin)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1 disabled:opacity-50"
-                  aria-label={showPin ? 'Hide PIN' : 'Show PIN'}
-                >
-                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={adminPassword}
+                    disabled={isLockedOut || isLoggingIn}
+                    onChange={(e) => {
+                      setAdminPassword(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    placeholder={isLockedOut ? `লক করা আছে (${lockoutSeconds}s)` : 'Admin password'}
+                    className="w-full bg-white text-stone-900 text-sm px-4 py-3 pr-11 rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-100"
+                    autoComplete="current-password"
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 p-1">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               {/* Caps Lock Alert */}
@@ -253,7 +243,7 @@ export const AdminDashboard: React.FC = () => {
               id="admin-login-btn"
             >
               <ShieldCheck className="w-4 h-4" />
-              <span>{isLockedOut ? `লক রয়েছে (${lockoutSeconds}s)` : 'প্রবেশ করুন (Login)'}</span>
+              <span>{isLoggingIn ? 'লগইন হচ্ছে...' : isLockedOut ? `লক রয়েছে (${lockoutSeconds}s)` : 'প্রবেশ করুন (Login)'}</span>
             </button>
           </form>
         </div>
