@@ -28,6 +28,8 @@ import {
   Truck,
   ShieldAlert,
   AlertCircle,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -247,6 +249,17 @@ export const AdminDashboard: React.FC = () => {
     getCategoryChildren(parentId).map((cat) => {
       const children = getCategoryChildren(cat.id);
       const depth = getCategoryDepth(cat.id);
+      const siblings = getCategoryChildren(cat.parentId || null);
+      const siblingIndex = siblings.findIndex((item) => item.id === cat.id);
+      const moveCategory = (direction: -1 | 1) => {
+        const target = siblings[siblingIndex + direction];
+        if (!target) return;
+        const currentOrder = cat.order ?? siblingIndex + 1;
+        const targetOrder = target.order ?? siblingIndex + direction + 1;
+        updateCategory(cat.id, { order: targetOrder });
+        updateCategory(target.id, { order: currentOrder });
+        showToast('ক্যাটাগরির অবস্থান আপডেট হয়েছে');
+      };
 
       return (
         <React.Fragment key={cat.id}>
@@ -277,6 +290,26 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => moveCategory(-1)}
+                disabled={siblingIndex <= 0}
+                className="p-1.5 text-stone-500 hover:text-emerald-700 hover:bg-stone-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                title="এক ধাপ উপরে নিন"
+                aria-label={cat.nameBn + ' এক ধাপ উপরে নিন'}
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveCategory(1)}
+                disabled={siblingIndex === siblings.length - 1}
+                className="p-1.5 text-stone-500 hover:text-emerald-700 hover:bg-stone-100 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
+                title="এক ধাপ নিচে নিন"
+                aria-label={cat.nameBn + ' এক ধাপ নিচে নিন'}
+              >
+                <ArrowDown className="w-4 h-4" />
+              </button>
               <button
                 type="button"
                 onClick={() => {
