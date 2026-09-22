@@ -64,3 +64,21 @@ export function setSupabaseAccessToken(token: string | null) {
     // Ignore unavailable session storage.
   }
 }
+
+
+export async function supabaseIsAdmin(token: string): Promise<boolean> {
+  return supabaseFetch<boolean>('/rest/v1/rpc/halal_is_admin', {
+    method: 'POST',
+    body: {},
+    token,
+  });
+}
+
+export async function supabaseSignOut(token: string | null) {
+  if (!token) return;
+  try {
+    await supabaseFetch('/auth/v1/logout', { method: 'POST', token });
+  } catch {
+    // Ignore remote logout errors; local session is still cleared.
+  }
+}
