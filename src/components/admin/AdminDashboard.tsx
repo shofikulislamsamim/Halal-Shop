@@ -241,6 +241,7 @@ export const AdminDashboard: React.FC = () => {
           {children.length > 0 && renderCategoryTree(cat.id)}
         </React.Fragment>
       );
+    });
   // Filtered Orders
   const filteredOrders = orders.filter((order) => {
     if (orderStatusFilter !== 'all' && order.status !== orderStatusFilter) {
