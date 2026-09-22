@@ -134,10 +134,13 @@ export const Header: React.FC = () => {
             onClick={() => navigateTo('home')}
             className="flex items-center gap-2.5 text-left group shrink-0 focus:outline-hidden"
             id="site-logo-btn"
+            aria-label={settings.shopName}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-800 text-amber-300 flex items-center justify-center font-extrabold text-xl shadow-xs group-hover:bg-emerald-900 transition-colors">
-              <span>হ</span>
-            </div>
+            <img
+              src="/Halal-Shop/halal-shop-logo.jpg"
+              alt={settings.shopName}
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover bg-stone-50 border border-stone-200 shadow-xs group-hover:shadow-sm transition-shadow"
+            />
             <div>
               <span className="text-lg sm:text-2xl font-black tracking-tight text-emerald-950 block leading-tight">
                 {settings.shopName}
