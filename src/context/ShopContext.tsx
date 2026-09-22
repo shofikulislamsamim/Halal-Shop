@@ -810,7 +810,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'অনুগ্রহ করে অ্যাডমিন পাসকোড প্রদান করুন।' };
     }
 
-    const configuredPin = String(settings.adminPin || '').trim();
+    const configuredPin = String(settings.adminPin || INITIAL_SETTINGS.adminPin || '').trim();
     if (!configuredPin) {
       return {
         success: false,
