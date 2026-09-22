@@ -205,6 +205,7 @@ export const AdminDashboard: React.FC = () => {
   // Category modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
 
   // Settings form state
   const [settingsForm, setSettingsForm] = useState<ShopSettings>(settings);
@@ -214,9 +215,17 @@ export const AdminDashboard: React.FC = () => {
   }, [settings]);
 
   // Recursive category helpers — supports unlimited nesting.
+  const categoryMatchesSearch = (category: Category): boolean => {
+    const q = categorySearchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const searchable = [category.nameBn, category.nameEn, category.slug].join(' ').toLowerCase();
+    if (searchable.includes(q)) return true;
+    return categories.some((child) => child.parentId === category.id && categoryMatchesSearch(child));
+  };
+
   const getCategoryChildren = (parentId: string | null) =>
     categories
-      .filter((c) => (c.parentId || null) === parentId)
+      .filter((c) => (c.parentId || null) === parentId && categoryMatchesSearch(c))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const getCategoryDepth = (id: string): number => {
@@ -900,6 +909,26 @@ export const AdminDashboard: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>মূল ক্যাটাগরি যোগ করুন</span>
             </button>
+          </div>
+
+          <div className="bg-white p-3 sm:p-4 rounded-2xl border border-stone-200">
+            <div className="relative">
+              <input
+                type="search"
+                value={categorySearchQuery}
+                onChange={(e) => setCategorySearchQuery(e.target.value)}
+                placeholder="ক্যাটাগরির নাম, ইংরেজি নাম বা স্লাগ খুঁজুন..."
+                className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+                aria-label="ক্যাটাগরি খুঁজুন"
+              />
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              {categorySearchQuery && (
+                <button type="button" onClick={() => setCategorySearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs p-1" aria-label="ক্যাটাগরি সার্চ পরিষ্কার করুন">✕</button>
+              )}
+            </div>
+            {categorySearchQuery && (
+              <div className="text-[11px] text-stone-500 mt-2">{categories.filter(categoryMatchesSearch).length}টি মিল পাওয়া গেছে</div>
+            )}
           </div>
 
           <div className="bg-stone-50 rounded-3xl border border-stone-200 p-3 sm:p-4 space-y-2">
