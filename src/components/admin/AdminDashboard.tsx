@@ -107,7 +107,7 @@ export const AdminDashboard: React.FC = () => {
       }
     }
     setIsLoggingIn(false);
-
+  };
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
