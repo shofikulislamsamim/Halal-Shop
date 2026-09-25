@@ -37,7 +37,9 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
     ? BD_UPAZILAS_THANAS.filter((u) => u.districtId === currentDistrictObj.id)
     : [];
 
-  const currentUpazilaObj = availableUpazilas.find((u) => u.nameBn === address.upazilaThana);
+  const isCustomDistrict =
+    Boolean(address.district) &&
+    !availableDistricts.some((district) => district.nameBn === address.district);
 
   // Handle location search typing
   const handleSearchChange = (query: string) => {
@@ -266,7 +268,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* Upazila / Thana */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                উপজেলা / থানা <span className="text-rose-500">*</span>
+                উপজেলা / থানা <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               {availableUpazilas.length > 0 ? (
                 <select
@@ -296,7 +298,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* Union */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                ইউনিয়ন <span className="text-rose-500">*</span>
+                ইউনিয়ন <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               {currentUpazilaObj?.unions && currentUpazilaObj.unions.length > 0 ? (
                 <div className="space-y-1">
@@ -339,7 +341,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           {/* Village / Locality */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
-              গ্রাম / পাড়া / এলাকা <span className="text-rose-500">*</span>
+              গ্রাম / পাড়া / এলাকা <span className="text-stone-400">(ঐচ্ছিক)</span>
             </label>
             <input
               type="text"
@@ -354,7 +356,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           {/* House / Road Details */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
-              বাড়ির নাম বা সুনির্দিষ্ট ঠিকানা <span className="text-rose-500">*</span>
+              বাড়ির নাম বা সুনির্দিষ্ট ঠিকানা <span className="text-stone-400">(ঐচ্ছিক)</span>
             </label>
             <input
               type="text"
@@ -374,7 +376,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* Area / Thana */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                থানা / প্রধান এলাকা <span className="text-rose-500">*</span>
+                থানা / প্রধান এলাকা <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               {availableUpazilas.length > 0 ? (
                 <select
@@ -404,7 +406,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* Sub-area / Sector / Block */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                সাব-এরিয়া / সেকশন <span className="text-rose-500">*</span>
+                সাব-এরিয়া / সেকশন <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               {currentUpazilaObj?.areas && currentUpazilaObj.areas.length > 0 ? (
                 <div className="space-y-1">
@@ -448,7 +450,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* Road / Block / Sector */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                রোড / ব্লক / লেন <span className="text-rose-500">*</span>
+                রোড / ব্লক / লেন <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               <input
                 type="text"
@@ -463,7 +465,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             {/* House / Flat / Building */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1">
-                বাড়ি নং / ফ্ল্যাট / তলা <span className="text-rose-500">*</span>
+                বাড়ি নং / ফ্ল্যাট / তলা <span className="text-stone-400">(ঐচ্ছিক)</span>
               </label>
               <input
                 type="text"
@@ -479,7 +481,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           {/* Detailed Address */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
-              বিস্তারিত ঠিকানা <span className="text-rose-500">*</span>
+              বিস্তারিত ঠিকানা <span className="text-stone-400">(ঐচ্ছিক)</span>
             </label>
             <input
               type="text"
