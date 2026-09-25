@@ -193,10 +193,10 @@ export const OrderConfirmationView: React.FC = () => {
         <button
           onClick={() => navigateTo('track')}
           className="w-full py-3.5 px-4 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors"
-          id="confirm-track-btn"
+          id="confirm-order-details-track-btn"
         >
           <Truck className="w-4 h-4" />
-          <span>অর্ডার ট্র্যাক করুন</span>
+          <span>অর্ডার ডিটেইলস ও ট্র্যাকিং</span>
         </button>
       </div>
     </div>
