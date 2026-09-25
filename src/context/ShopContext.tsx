@@ -40,6 +40,11 @@ export interface OrderListFilters {
   offset?: number;
 }
 
+export interface OrderStatusHistoryEntry {
+  status: OrderStatus;
+  changedAt: string;
+}
+
 export interface OrderStats {
   total: number;
   todayOrders: number;
@@ -112,6 +117,7 @@ interface ShopContextType {
     orderNote?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
+  getOrderStatusHistory: (orderId: string, phone?: string) => Promise<OrderStatusHistoryEntry[]>;
   refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
 
@@ -642,6 +648,39 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Order tracking lookup failed:', error);
       return undefined;
+    }
+  };
+
+  const getOrderStatusHistory = async (orderId: string, phone?: string): Promise<OrderStatusHistoryEntry[]> => {
+    if (!isSupabaseConfigured) {
+      const localOrder = orders.find((order) => order.id.toUpperCase() === orderId.trim().toUpperCase());
+      return localOrder
+        ? [{ status: localOrder.status, changedAt: localOrder.createdAt }]
+        : [];
+    }
+
+    try {
+      const cleanPhone = phone ? phone.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '') : '';
+      const endpoint = phone
+        ? '/rest/v1/rpc/get_halal_order_status_history'
+        : '/rest/v1/rpc/admin_get_halal_order_status_history';
+      const body = phone
+        ? { p_order_code: orderId.trim().toUpperCase(), p_mobile: cleanPhone }
+        : { p_order_code: orderId.trim().toUpperCase() };
+      const token = phone ? undefined : getSupabaseAccessToken();
+      const remote = await supabaseFetch<any>(endpoint, {
+        method: 'POST',
+        ...(token ? { token } : {}),
+        body,
+      });
+      if (!Array.isArray(remote)) return [];
+      return remote.map((entry: any) => ({
+        status: entry.status as OrderStatus,
+        changedAt: entry.changed_at,
+      }));
+    } catch (error) {
+      console.error('Order status history lookup failed:', error);
+      return [];
     }
   };
 
@@ -1241,6 +1280,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastCreatedOrder,
         placeOrder,
         getOrderByIdAndPhone,
+        getOrderStatusHistory,
         refreshOrders,
         updateOrderStatus,
 
