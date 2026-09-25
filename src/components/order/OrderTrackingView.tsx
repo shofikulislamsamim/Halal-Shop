@@ -25,12 +25,11 @@ const STATUS_STEPS: { key: OrderStatus; label: string; desc: string }[] = [
 ];
 
 export const OrderTrackingView: React.FC = () => {
-  const { getOrderByIdAndPhone, getOrderStatusHistory, lastCreatedOrder, settings } = useShop();
+  const { getOrdersByPhone, getOrderStatusHistory, lastCreatedOrder, settings } = useShop();
 
-  const [orderId, setOrderId] = useState(lastCreatedOrder?.id || '');
   const [mobile, setMobile] = useState(lastCreatedOrder?.mobile || '');
+  const [searchedOrders, setSearchedOrders] = useState<Order[]>(lastCreatedOrder ? [lastCreatedOrder] : []);
   const [searchedOrder, setSearchedOrder] = useState<Order | null>(lastCreatedOrder || null);
-  const [hasSearched, setHasSearched] = useState(Boolean(lastCreatedOrder));
   const [errorMessage, setErrorMessage] = useState('');
 
   const [isSearching, setIsSearching] = useState(false);
@@ -39,24 +38,26 @@ export const OrderTrackingView: React.FC = () => {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
-    if (!orderId.trim() || !mobile.trim()) {
-      setErrorMessage('অনুগ্রহ করে অর্ডার আইডি এবং মোবাইল নাম্বার দুটিই দিন');
+    const cleanPhone = mobile.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '');
+    if (cleanPhone.length < 11) {
+      setErrorMessage('অনুগ্রহ করে সঠিক মোবাইল নাম্বার দিন');
       return;
     }
 
     setIsSearching(true);
-    const found = await getOrderByIdAndPhone(orderId.trim(), mobile.trim());
-    setSearchedOrder(found || null);
-    setHasSearched(true);
-    if (found) {
-      setStatusHistory(await getOrderStatusHistory(found.id, found.mobile));
+    const foundOrders = await getOrdersByPhone(cleanPhone);
+    setSearchedOrders(foundOrders);
+    const firstOrder = foundOrders[0] || null;
+    setSearchedOrder(firstOrder);
+    if (firstOrder) {
+      setStatusHistory(await getOrderStatusHistory(firstOrder.id, firstOrder.mobile));
     } else {
       setStatusHistory([]);
     }
     setIsSearching(false);
 
-    if (!found) {
-      setErrorMessage('প্রদত্ত তথ্য অনুযায়ী কোনো অর্ডার পাওয়া যায়নি। অনুগ্রহ করে সঠিক তথ্য দিয়ে পুনরায় চেষ্টা করুন।');
+    if (!firstOrder) {
+      setErrorMessage('এই মোবাইল নাম্বার দিয়ে কোনো অর্ডার পাওয়া যায়নি।');
     }
   };
 
@@ -97,28 +98,14 @@ export const OrderTrackingView: React.FC = () => {
           অর্ডার ডিটেইলস ও ট্র্যাকিং
         </h1>
         <p className="text-stone-600 text-xs sm:text-sm mt-1">
-          অর্ডার আইডি ও মোবাইল নাম্বার দিয়ে অর্ডারের বিস্তারিত তথ্য দেখুন এবং ডেলিভারি অগ্রগতি ট্র্যাক করুন
+          শুধু মোবাইল নাম্বার দিয়ে আপনার অর্ডারগুলোর বিস্তারিত তথ্য দেখুন এবং ডেলিভারি অগ্রগতি ট্র্যাক করুন
         </p>
       </div>
 
       {/* Tracking Form */}
       <div className="bg-white rounded-3xl border border-stone-200 p-5 sm:p-6 shadow-xs mb-8">
         <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-stone-700 mb-1">
-              অর্ডার আইডি (যেমন: HS-1082) <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-              placeholder="HS-XXXX"
-              className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 font-mono"
-              id="track-order-id-input"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-4">
             <label className="block text-xs font-semibold text-stone-700 mb-1">
               মোবাইল নাম্বার <span className="text-rose-500">*</span>
             </label>
@@ -127,9 +114,13 @@ export const OrderTrackingView: React.FC = () => {
               value={mobile}
               onChange={(e) => setMobile(e.target.value)}
               placeholder="017XXXXXXXX"
+              inputMode="numeric"
               className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
               id="track-phone-input"
             />
+            <p className="text-[11px] text-stone-500 mt-1">
+              এই নাম্বার দিয়ে করা আপনার সর্বশেষ অর্ডারগুলো একসাথে দেখানো হবে।
+            </p>
           </div>
 
           <div className="sm:col-span-1 flex items-end">
@@ -140,7 +131,7 @@ export const OrderTrackingView: React.FC = () => {
               disabled={isSearching}
             >
               <Search className="w-4 h-4" />
-              <span>{isSearching ? 'খোঁজা হচ্ছে...' : 'ট্র্যাক করুন'}</span>
+              <span>{isSearching ? 'খোঁজা হচ্ছে...' : 'অর্ডার দেখুন'}</span>
             </button>
           </div>
         </form>
@@ -152,6 +143,48 @@ export const OrderTrackingView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {searchedOrders.length > 0 && (
+        <div className="bg-white rounded-3xl border border-stone-200 p-5 sm:p-6 shadow-xs mb-8">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-stone-900">আপনার অর্ডারসমূহ</h2>
+              <p className="text-[11px] sm:text-xs text-stone-500 mt-0.5">
+                এই মোবাইল নাম্বার দিয়ে পাওয়া {searchedOrders.length}টি অর্ডার
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {searchedOrders.map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                onClick={() => setSearchedOrder(order)}
+                className={`w-full text-left rounded-2xl border p-3 sm:p-4 transition-colors ${
+                  searchedOrder?.id === order.id
+                    ? 'border-emerald-600 bg-emerald-50'
+                    : 'border-stone-200 bg-stone-50 hover:border-emerald-300'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono font-bold text-stone-900 text-sm">#{order.id}</div>
+                    <div className="text-[11px] text-stone-500 mt-1">
+                      {new Date(order.createdAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="font-black text-emerald-800 text-sm">{formatPrice(order.total)}</div>
+                    <div className="text-[11px] font-semibold text-stone-600 mt-1">
+                      {order.status === 'cancelled' ? 'বাতিল' : order.status === 'delivered' ? 'ডেলিভারড' : order.status === 'shipped' ? 'ডেলিভারির পথে' : order.status === 'processing' ? 'প্রসেসিং' : order.status === 'confirmed' ? 'কনফার্মড' : 'পেন্ডিং'}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Searched Order Result */}
       {searchedOrder && (
