@@ -117,6 +117,7 @@ interface ShopContextType {
     orderNote?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
+  getOrdersByPhone: (phone: string) => Promise<Order[]>;
   getOrderStatusHistory: (orderId: string, phone?: string) => Promise<OrderStatusHistoryEntry[]>;
   refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
@@ -620,6 +621,35 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('দুঃখিত, নির্বাচিত কোনো পণ্যের স্টক পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       }
       throw new Error('অর্ডার সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।');
+    }
+  };
+
+  // Mobile-only order tracking search. The server returns all recent orders
+  // belonging to the normalized mobile number, so the customer does not need
+  // to remember or enter an order ID.
+  const getOrdersByPhone = async (phone: string): Promise<Order[]> => {
+    const cleanPhone = phone.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '');
+    if (cleanPhone.length < 11) return [];
+
+    if (!isSupabaseConfigured) {
+      return orders
+        .filter(
+          (order) =>
+            order.mobile.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '') === cleanPhone
+        )
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/get_halal_orders_by_mobile', {
+        method: 'POST',
+        body: { p_mobile: cleanPhone },
+      });
+      if (!Array.isArray(remote)) return [];
+      return remote.map(mapRemoteOrder);
+    } catch (error) {
+      console.error('Mobile-only order tracking lookup failed:', error);
+      return [];
     }
   };
 
