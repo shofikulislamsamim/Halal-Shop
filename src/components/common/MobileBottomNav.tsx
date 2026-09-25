@@ -11,7 +11,6 @@ import {
   MessageCircle,
   Info,
   Truck,
-  ExternalLink,
 } from 'lucide-react';
 import { getWhatsAppUrl, getGeneralWhatsAppMessage } from '../../utils/helpers';
 
