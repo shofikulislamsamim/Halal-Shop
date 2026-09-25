@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StructuredAddress } from '../../types';
 import {
   BD_DIVISIONS,
   BD_DISTRICTS,
   BD_UPAZILAS_THANAS,
-  searchLocations,
+  loadCompleteBangladeshLocations,
 } from '../../data/bangladeshLocations';
-import { Search, MapPin, AlertCircle } from 'lucide-react';
+import { Search, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { formatAddress } from '../../utils/helpers';
 
 interface SmartAdaptiveAddressProps {
@@ -20,27 +20,110 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
   onChange,
   showError,
 }) => {
+  const [divisions, setDivisions] = useState(BD_DIVISIONS);
+  const [districts, setDistricts] = useState(BD_DISTRICTS);
+  const [upazilas, setUpazilas] = useState(BD_UPAZILAS_THANAS);
+  const [locationDataReady, setLocationDataReady] = useState(false);
+  const [locationDataError, setLocationDataError] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<ReturnType<typeof searchLocations>>([]);
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
 
-  const currentDistrictObj = BD_DISTRICTS.find((d) => d.nameBn === address.district);
-  const availableUpazilas = currentDistrictObj
-    ? BD_UPAZILAS_THANAS.filter((u) => u.districtId === currentDistrictObj.id)
-    : [];
-
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setShowResultsDropdown(false);
-      return;
+    let cancelled = false;
+
+    loadCompleteBangladeshLocations()
+      .then((complete) => {
+        if (cancelled) return;
+        setDivisions(complete.divisions);
+        setDistricts(complete.districts);
+        setUpazilas(complete.upazilas);
+        setLocationDataReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLocationDataError(true);
+          setLocationDataReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currentDistrictObj = districts.find((d) => d.nameBn === address.district);
+  const availableUpazilas = useMemo(
+    () => (currentDistrictObj
+      ? upazilas.filter((u) => u.districtId === currentDistrictObj.id)
+      : []),
+    [currentDistrictObj, upazilas]
+  );
+
+  const currentUpazilaObj = availableUpazilas.find(
+    (u) => u.nameBn === address.upazilaThana
+  );
+
+  const availableAreas = useMemo(() => {
+    if (!currentUpazilaObj) return [];
+    return [...new Set([
+      ...(currentUpazilaObj.areas || []),
+      ...(currentUpazilaObj.unions || []),
+    ])].filter(Boolean);
+  }, [currentUpazilaObj]);
+
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (query.length < 2) return [];
+
+    const results: {
+      division: typeof divisions[number];
+      district: typeof districts[number];
+      upazila: typeof upazilas[number];
+      matchText: string;
+    }[] = [];
+
+    for (const upazila of upazilas) {
+      const district = districts.find((d) => d.id === upazila.districtId);
+      if (!district) continue;
+      const division = divisions.find((d) => d.id === district.divisionId);
+      if (!division) continue;
+
+      const areaMatch = (upazila.areas || []).find((a) =>
+        a.toLowerCase().includes(query)
+      );
+      const unionMatch = (upazila.unions || []).find((u) =>
+        u.toLowerCase().includes(query)
+      );
+
+      const matches =
+        upazila.nameBn.toLowerCase().includes(query) ||
+        upazila.nameEn.toLowerCase().includes(query) ||
+        district.nameBn.toLowerCase().includes(query) ||
+        district.nameEn.toLowerCase().includes(query) ||
+        division.nameBn.toLowerCase().includes(query) ||
+        division.nameEn.toLowerCase().includes(query) ||
+        Boolean(areaMatch) ||
+        Boolean(unionMatch);
+
+      if (matches) {
+        results.push({
+          division,
+          district,
+          upazila,
+          matchText: areaMatch
+            ? `${areaMatch} (${upazila.nameBn})`
+            : unionMatch
+            ? `${unionMatch} (${upazila.nameBn})`
+            : `${upazila.nameBn}, ${district.nameBn}`,
+        });
+      }
+
+      if (results.length >= 8) break;
     }
 
-    if (searchQuery.trim().length >= 2) {
-      setSearchResults(searchLocations(searchQuery).slice(0, 8));
-      setShowResultsDropdown(true);
-    }
-  }, [searchQuery]);
+    return results;
+  }, [searchQuery, divisions, districts, upazilas]);
 
   const updateAddress = (changes: Partial<StructuredAddress>) => {
     const updated: StructuredAddress = {
@@ -51,44 +134,31 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
     onChange(updated);
   };
 
-  const handleSelectSuggestedLocation = (item: (typeof searchResults)[0]) => {
-    const district = item.district.nameBn;
-    const division = item.division.nameBn;
-    const upazila = item.upazila.nameBn;
-    const suggestedArea = item.isUrban
-      ? item.upazila.areas?.[0] || ''
-      : item.upazila.unions?.[0] || '';
+  const handleSelectSuggestedLocation = (item: (typeof searchResults)[number]) => {
+    const suggestedArea = item.upazila.areas?.[0] || item.upazila.unions?.[0] || '';
 
     updateAddress({
-      division,
-      district,
-      upazilaThana: upazila,
+      division: item.division.nameBn,
+      district: item.district.nameBn,
+      upazilaThana: item.upazila.nameBn,
       area: suggestedArea,
-      city: item.isUrban
-        ? item.district.isDhakaCity
-          ? 'ঢাকা'
-          : item.district.nameBn
-        : undefined,
-      locationType: item.isUrban ? 'urban' : 'rural',
-      union: !item.isUrban ? suggestedArea : '',
+      union: suggestedArea,
+      city: item.district.isDhakaCity ? 'ঢাকা' : item.district.nameBn,
+      locationType: item.upazila.isUrban ? 'urban' : 'rural',
       village: '',
       roadBlockSector: '',
       houseFlat: '',
     });
 
     setSearchQuery('');
-    setSearchResults([]);
     setShowResultsDropdown(false);
   };
 
   const handleDistrictChange = (districtName: string) => {
-    const district = BD_DISTRICTS.find((d) => d.nameBn === districtName);
+    const district = districts.find((d) => d.nameBn === districtName);
     const division = district
-      ? BD_DIVISIONS.find((d) => d.id === district.divisionId)?.nameBn || address.division
-      : address.division;
-    const upazilas = district
-      ? BD_UPAZILAS_THANAS.filter((u) => u.districtId === district.id)
-      : [];
+      ? divisions.find((d) => d.id === district.divisionId)?.nameBn || ''
+      : '';
 
     updateAddress({
       division,
@@ -106,6 +176,12 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
 
   const handleUpazilaChange = (value: string) => {
     const upazila = availableUpazilas.find((u) => u.nameBn === value);
+
+    // IMPORTANT: update the upazila and its first area in ONE state update.
+    // The previous implementation used two updates and the second one could
+    // overwrite the selected upazila with stale state.
+    const firstArea = upazila?.areas?.[0] || upazila?.unions?.[0] || '';
+
     updateAddress({
       upazilaThana: value,
       area: '',
@@ -113,21 +189,23 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
       village: '',
       roadBlockSector: '',
       houseFlat: '',
-      locationType: address.locationType,
+      locationType: upazila?.isUrban ? 'urban' : 'rural',
     });
 
-    if (upazila) {
-      const firstArea = upazila.areas?.[0] || '';
-      const firstUnion = upazila.unions?.[0] || '';
-      if (address.locationType === 'urban' && firstArea) {
-        updateAddress({ area: firstArea });
-      } else if (address.locationType === 'rural' && firstUnion) {
-        updateAddress({ area: firstUnion, union: firstUnion });
-      }
+    if (firstArea) {
+      // Keep the area empty so the customer explicitly chooses the correct
+      // union/area instead of accidentally receiving the first item.
     }
   };
 
-  const isDhakaCity = Boolean(currentDistrictObj?.isDhakaCity);
+  const handleAreaChange = (value: string) => {
+    updateAddress({
+      area: value,
+      union: value,
+    });
+  };
+
+  const isDhakaDistrict = Boolean(currentDistrictObj?.isDhakaCity);
 
   return (
     <div className="space-y-4">
@@ -140,9 +218,12 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowResultsDropdown(e.target.value.trim().length >= 2);
+            }}
             onFocus={() => searchResults.length > 0 && setShowResultsDropdown(true)}
-            placeholder="থানা, উপজেলা, এলাকা বা শহরের নাম লিখুন..."
+            placeholder="জেলা, থানা, উপজেলা, ইউনিয়ন বা এলাকার নাম লিখুন..."
             className="w-full bg-white text-stone-900 text-xs sm:text-sm pl-9 pr-4 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 shadow-2xs"
             id="location-search-input"
           />
@@ -158,7 +239,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
                   <div className="max-h-60 overflow-y-auto divide-y divide-stone-100">
                     {searchResults.map((item, idx) => (
                       <button
-                        key={idx}
+                        key={`${item.district.id}-${item.upazila.id}-${idx}`}
                         type="button"
                         onClick={() => handleSelectSuggestedLocation(item)}
                         className="w-full text-left px-3.5 py-2.5 hover:bg-emerald-50 flex items-center gap-2 text-xs transition-colors"
@@ -174,15 +255,22 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
                 </>
               ) : (
                 <div className="px-3.5 py-3 text-xs text-stone-500">
-                  মিল পাওয়া যায়নি। নিচের ঘরগুলোতে ঠিকানা লিখুন।
+                  মিল পাওয়া যায়নি। নিচের তালিকা থেকে ঠিকানা নির্বাচন করুন।
                 </div>
               )}
             </div>
           )}
         </div>
-        <p className="text-[10px] text-emerald-700 mt-1.5">
-          ঠিকানা খুঁজে পেলে জেলা ও থানা/উপজেলা স্বয়ংক্রিয়ভাবে পূরণ হবে।
-        </p>
+        <div className="text-[10px] text-emerald-700 mt-1.5 flex items-center gap-1.5">
+          {!locationDataReady && <Loader2 className="w-3 h-3 animate-spin" />}
+          <span>
+            {locationDataError
+              ? 'সম্পূর্ণ লোকেশন ডেটা লোড হয়নি—প্রয়োজনে ঠিকানা লিখে দিতে পারবেন।'
+              : locationDataReady
+              ? 'বাংলাদেশের সম্পূর্ণ জেলা, উপজেলা ও ইউনিয়ন তালিকা প্রস্তুত।'
+              : 'সম্পূর্ণ জেলা, উপজেলা ও ইউনিয়নের তথ্য লোড হচ্ছে...'}
+          </span>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -197,7 +285,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             id="address-district-select"
           >
             <option value="">জেলা নির্বাচন করুন</option>
-            {BD_DISTRICTS.map((district) => (
+            {districts.map((district) => (
               <option key={district.id} value={district.nameBn}>
                 {district.nameBn}
               </option>
@@ -213,10 +301,13 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             <select
               value={address.upazilaThana}
               onChange={(e) => handleUpazilaChange(e.target.value)}
-              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+              disabled={!address.district}
+              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 disabled:bg-stone-100 disabled:text-stone-400"
               id="address-upazila-thana-select"
             >
-              <option value="">থানা / উপজেলা নির্বাচন করুন</option>
+              <option value="">
+                {address.district ? 'থানা / উপজেলা নির্বাচন করুন' : 'আগে জেলা নির্বাচন করুন'}
+              </option>
               {availableUpazilas.map((u) => (
                 <option key={u.id} value={u.nameBn}>
                   {u.nameBn}
@@ -228,8 +319,9 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
               type="text"
               value={address.upazilaThana || ''}
               onChange={(e) => updateAddress({ upazilaThana: e.target.value })}
+              disabled={!address.district}
               placeholder="থানা / উপজেলার নাম লিখুন"
-              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 disabled:bg-stone-100"
               id="address-upazila-thana-input"
             />
           )}
@@ -239,14 +331,47 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           <label className="block text-xs font-semibold text-stone-700 mb-1">
             এলাকা / ইউনিয়ন / বাজার / মহল্লা <span className="text-rose-500">*</span>
           </label>
-          <input
-            type="text"
-            value={address.area || ''}
-            onChange={(e) => updateAddress({ area: e.target.value, union: e.target.value })}
-            placeholder={isDhakaCity ? 'যেমন: মিরপুর ১০, সেনপাড়া, পল্লবী' : 'যেমন: বাজার, ইউনিয়ন, গ্রাম বা এলাকার নাম'}
-            className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
-            id="address-area-input"
-          />
+
+          {availableAreas.length > 0 ? (
+            <select
+              value={address.area || ''}
+              onChange={(e) => handleAreaChange(e.target.value)}
+              disabled={!address.upazilaThana}
+              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 disabled:bg-stone-100 disabled:text-stone-400"
+              id="address-area-select"
+            >
+              <option value="">
+                {address.upazilaThana ? 'এলাকা / ইউনিয়ন নির্বাচন করুন' : 'আগে থানা / উপজেলা নির্বাচন করুন'}
+              </option>
+              {availableAreas.map((area) => (
+                <option key={area} value={area}>
+                  {area}
+                </option>
+              ))}
+              <option value="__other__">অন্যান্য / তালিকায় নেই</option>
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={address.area || ''}
+              onChange={(e) => handleAreaChange(e.target.value)}
+              disabled={!address.upazilaThana}
+              placeholder={isDhakaDistrict ? 'যেমন: মিরপুর ১০, সেনপাড়া, পল্লবী' : 'এলাকা, ইউনিয়ন, বাজার বা মহল্লার নাম লিখুন'}
+              className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600 disabled:bg-stone-100"
+              id="address-area-input"
+            />
+          )}
+
+          {address.area === '__other__' && (
+            <input
+              type="text"
+              value=""
+              onChange={(e) => handleAreaChange(e.target.value)}
+              placeholder="আপনার এলাকার নাম লিখুন"
+              className="mt-2 w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+              autoFocus
+            />
+          )}
         </div>
 
         <div>
