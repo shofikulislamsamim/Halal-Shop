@@ -23,7 +23,6 @@ export const MobileBottomNav: React.FC = () => {
     cartCount,
     openCartDrawer,
     settings,
-    isAdminAuthenticated,
   } = useShop();
 
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
