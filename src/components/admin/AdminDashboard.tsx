@@ -86,17 +86,8 @@ export const AdminDashboard: React.FC = () => {
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
-  // Invoice logo: use the saved shop logo when available, otherwise render a
-  // self-contained SVG fallback so the invoice never loses its branding.
-  const invoiceLogoSrc = settings.logoUrl?.trim() || `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
-      <rect width="160" height="160" rx="28" fill="#064e3b"/>
-      <circle cx="80" cy="72" r="42" fill="#ffffff"/>
-      <path d="M80 39c-8 13-25 22-25 39 0 16 11 27 25 27s25-11 25-27c0-17-17-26-25-39Z" fill="#059669"/>
-      <path d="M80 51v45M68 75c8 3 16 3 24 0" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
-      <text x="80" y="143" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="#ffffff">HALAL SHOP</text>
-    </svg>`
-  )}`;
+  // Use the exact same website logo shown in the main Header.
+  const invoiceLogoSrc = '/Halal-Shop/halal-shop-logo.jpg';
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, '');
@@ -1936,7 +1927,7 @@ export const AdminDashboard: React.FC = () => {
               <div id="halal-shop-print-invoice" className="sheet bg-white max-w-[210mm] min-h-[297mm] mx-auto p-6 sm:p-10 shadow-xl text-stone-800">
                 <div className="top flex justify-between gap-6 border-b-[3px] border-emerald-700 pb-5">
                   <div className="brand flex items-center gap-4">
-                    <img src={invoiceLogoSrc} alt={settings.shopName} className="logo w-16 h-16 object-contain rounded-xl" onError={(event) => { event.currentTarget.src = invoiceLogoSrc; }} />
+                    <img src={invoiceLogoSrc} alt={settings.shopName} className="logo w-16 h-16 object-contain rounded-xl" />
                     <div><div className="shop text-xl sm:text-2xl font-black">{settings.shopName}</div><div className="muted text-xs mt-1">{settings.tagline}</div><div className="muted text-xs mt-1">{settings.shopAddress}</div><div className="muted text-xs">{settings.contactNumber}</div></div>
                   </div>
                   <div className="invoice-title text-right shrink-0"><h1 className="text-3xl font-black tracking-widest text-stone-900">INVOICE</h1><div className="text-xs text-stone-500 mt-1">#{invoiceOrder.id}</div><div className="text-xs text-stone-500 mt-1">{new Date(invoiceOrder.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
