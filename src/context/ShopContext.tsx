@@ -547,6 +547,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     deliveryCharge: number;
     total: number;
     orderNote?: string;
+    idempotencyKey?: string;
   }): Promise<Order> => {
     if (!isSupabaseConfigured) {
       throw new Error('অর্ডার নেওয়ার জন্য Supabase সংযোগ প্রয়োজন।');
@@ -561,8 +562,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         productId: item.productId,
         quantity: item.quantity,
       })),
-      // Pricing and delivery are recalculated securely by the database function.
+      // Pricing, delivery, stock and duplicate-submission protection are handled server-side.
       orderNote: orderData.orderNote,
+      idempotencyKey: orderData.idempotencyKey,
     };
 
     try {
