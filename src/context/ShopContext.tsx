@@ -1152,6 +1152,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getCategoryWithDescendants,
         addProduct,
         updateProduct,
+        adjustProductStock,
         deleteProduct,
         addCategory,
         updateCategory,
