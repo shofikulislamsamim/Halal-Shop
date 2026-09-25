@@ -54,7 +54,7 @@ interface ShopContextType {
   updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
   deleteCategory: (id: string) => Promise<{ success: boolean; message?: string }>;
   moveCategory: (id: string, newParentId: string | null) => Promise<{ success: boolean; message?: string }>;
-  reorderCategory: (id: string, direction: 'up' | 'down') => void;
+  reorderCategory: (id: string, direction: 'up' | 'down') => Promise<boolean>;
   toggleCategoryStatus: (id: string) => Promise<boolean>;
 
   // Cart
@@ -960,52 +960,30 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const reorderCategory = (id: string, direction: 'up' | 'down') => {
+  const reorderCategory = async (id: string, direction: 'up' | 'down'): Promise<boolean> => {
     const target = categories.find((category) => category.id === id);
-    if (!target) return;
-
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-
-        await supabaseFetch('/rest/v1/rpc/admin_reorder_halal_categories', {
-          method: 'POST',
-          token,
-          body: {
-            p_category_id: id,
-            p_direction: direction,
-          },
-        });
-
-        // Reload the authoritative sibling order so local state matches the
-        // transaction even when another admin tab changed categories at the
-        // same time.
-        const remoteCategories = await supabaseFetch<any[]>(
-          '/rest/v1/halal_categories?select=*&order=sort_order.asc',
-          { token }
-        );
-
-        if (Array.isArray(remoteCategories)) {
-          setCategories(remoteCategories.map((cat) => ({
-            id: cat.id,
-            nameBn: cat.name_bn,
-            nameEn: cat.name_en || '',
-            slug: cat.slug,
-            parentId: cat.parent_id,
-            icon: cat.icon || undefined,
-            isActive: cat.is_active !== false,
-            order: Number(cat.sort_order || 0),
-            createdAt: cat.created_at,
-            updatedAt: cat.updated_at,
-          })));
-        }
-        showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা হয়েছে');
-      } catch (error) {
-        console.error('Category reorder failed:', error);
-        showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা যায়নি।');
-      }
-    })();
+    if (!target) return false;
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      await supabaseFetch('/rest/v1/rpc/admin_reorder_halal_categories', {
+        method: 'POST', token,
+        body: { p_category_id: id, p_direction: direction },
+      });
+      const remoteCategories = await supabaseFetch<any[]>('/rest/v1/halal_categories?select=*&order=sort_order.asc', { token });
+      if (!Array.isArray(remoteCategories)) throw new Error('Category reload failed.');
+      setCategories(remoteCategories.map((cat) => ({
+        id: cat.id, nameBn: cat.name_bn, nameEn: cat.name_en || '', slug: cat.slug,
+        parentId: cat.parent_id, icon: cat.icon || undefined, isActive: cat.is_active !== false,
+        order: Number(cat.sort_order || 0), createdAt: cat.created_at, updatedAt: cat.updated_at,
+      })));
+      showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা হয়েছে');
+      return true;
+    } catch (error) {
+      console.error('Category reorder failed:', error);
+      showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা যায়নি।');
+      return false;
+    }
   };
 
   const toggleCategoryStatus = async (id: string): Promise<boolean> => {
