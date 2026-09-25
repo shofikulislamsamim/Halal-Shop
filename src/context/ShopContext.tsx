@@ -53,7 +53,7 @@ interface ShopContextType {
   addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
   deleteCategory: (id: string) => Promise<{ success: boolean; message?: string }>;
-  moveCategory: (id: string, newParentId: string | null) => { success: boolean; message?: string };
+  moveCategory: (id: string, newParentId: string | null) => Promise<{ success: boolean; message?: string }>;
   reorderCategory: (id: string, direction: 'up' | 'down') => void;
   toggleCategoryStatus: (id: string) => Promise<boolean>;
 
