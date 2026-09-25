@@ -186,19 +186,10 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom copyright & Admin Link */}
+        {/* Bottom copyright */}
         <div className="pt-6 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-500">
           <div>{settings.footerNotice}</div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigateTo('admin')}
-              className="text-stone-600 hover:text-stone-300 inline-flex items-center gap-1 transition-colors"
-              id="footer-admin-link"
-            >
-              <Lock className="w-3 h-3" />
-              <span>এডমিন লগইন</span>
-            </button>
-          </div>
+          <div className="text-stone-600">নিরাপদ ও সহজ অনলাইন কেনাকাটা</div>
         </div>
       </div>
     </footer>
