@@ -81,6 +81,7 @@ export const CheckoutView: React.FC = () => {
   const [isReviewingAddress, setIsReviewingAddress] = useState(false);
   const [hasValidated, setHasValidated] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [altPhoneError, setAltPhoneError] = useState('');
   const [nameError, setNameError] = useState('');
   const [addressIncompleteError, setAddressIncompleteError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,10 +89,12 @@ export const CheckoutView: React.FC = () => {
   const [submitError, setSubmitError] = useState('');
 
   // Delivery charge calculation
+  // Delivery classification must be based on the actual Dhaka city/district,
+  // not the whole Dhaka Division. This keeps Gazipur, Narayanganj, Tangail,
+  // etc. on the outside-Dhaka rate unless the address itself is Dhaka.
   const isDhaka =
-    address.district.includes('ঢাকা') ||
-    address.city?.includes('ঢাকা') ||
-    address.division === 'ঢাকা বিভাগ' && address.locationType === 'urban';
+    address.district === 'ঢাকা (মেট্রো / সিটি)' ||
+    address.city === 'ঢাকা';
 
   const isFreeDelivery = itemsSubtotal >= settings.freeDeliveryThreshold;
   const deliveryCharge = isFreeDelivery
@@ -127,31 +130,22 @@ export const CheckoutView: React.FC = () => {
       setPhoneError('');
     }
 
-    // Smart Address Validation according to location type
-    let addressValid = true;
+    // Keep checkout genuinely easy: division + district + a usable
+    // detailed address are enough to place the order. Upazila/area/road/
+    // house/union/village remain helpful structured fields but are optional,
+    // because real customers may not know every administrative field.
+    const addressValid =
+      Boolean(address.division?.trim()) &&
+      Boolean(address.district?.trim()) &&
+      Boolean(address.detailedAddress?.trim());
 
-    if (!address.division || !address.district || !address.upazilaThana) {
-      addressValid = false;
-    }
-
-    if (address.locationType === 'rural') {
-      // For rural: Union, Village, Detailed Address required (NO landmark)
-      if (
-        !address.union?.trim() ||
-        !address.village?.trim() ||
-        !address.detailedAddress.trim()
-      ) {
-        addressValid = false;
-      }
+    // Optional alternative phone: if supplied, it must still be a valid BD number.
+    const cleanAltPhone = sanitizeBdPhone(altMobile);
+    if (altMobile.trim() && !isValidBdPhone(cleanAltPhone)) {
+      setAltPhoneError('বিকল্প নাম্বারটি সঠিক ১১ ডিজিটের মোবাইল নাম্বার দিন');
+      valid = false;
     } else {
-      // For urban: Area/Thana, Road/Block, House/Building, Detailed Address required (NO landmark)
-      if (
-        !address.area?.trim() ||
-        !address.roadBlockSector?.trim() ||
-        !address.houseFlat?.trim()
-      ) {
-        addressValid = false;
-      }
+      setAltPhoneError('');
     }
 
     if (!addressValid) {
@@ -175,8 +169,10 @@ export const CheckoutView: React.FC = () => {
 
   // Final submit after confirmation
   const handleConfirmFinalOrder = async () => {
-    if (!validateForm() || isSubmitting) {
-      if (!validateForm()) setIsReviewingAddress(false);
+    if (isSubmitting) return;
+    const valid = validateForm();
+    if (!valid) {
+      setIsReviewingAddress(false);
       return;
     }
 
@@ -302,13 +298,13 @@ export const CheckoutView: React.FC = () => {
 
                 <div className="flex items-baseline justify-between border-b border-stone-200/80 pb-2">
                   <span className="font-semibold text-stone-500">মোবাইল নাম্বার:</span>
-                  <span className="font-bold text-emerald-900 text-sm price-display">{mobile}</span>
+                  <span className="font-bold text-emerald-900 text-sm price-display">{sanitizeBdPhone(mobile)}</span>
                 </div>
 
                 {altMobile && (
                   <div className="flex items-baseline justify-between border-b border-stone-200/80 pb-2">
                     <span className="font-semibold text-stone-500">বিকল্প মোবাইল:</span>
-                    <span className="text-stone-800 price-display">{altMobile}</span>
+                    <span className="text-stone-800 price-display">{sanitizeBdPhone(altMobile)}</span>
                   </div>
                 )}
 
@@ -467,6 +463,9 @@ export const CheckoutView: React.FC = () => {
                         className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-700 shadow-2xs"
                         id="checkout-alt-phone-input"
                       />
+                      {altPhoneError && (
+                        <p className="text-[11px] text-rose-600 mt-1 font-medium">{altPhoneError}</p>
+                      )}
                     </div>
                   </div>
                 </div>
