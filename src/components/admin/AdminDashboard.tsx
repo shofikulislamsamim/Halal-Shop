@@ -47,6 +47,7 @@ export const AdminDashboard: React.FC = () => {
     addCategory,
     updateCategory,
     deleteCategory,
+    reorderCategory,
     updateOrderStatus,
     updateSettings,
     showToast,
@@ -262,13 +263,9 @@ export const AdminDashboard: React.FC = () => {
       const siblings = getCategoryChildren(cat.parentId || null);
       const siblingIndex = siblings.findIndex((item) => item.id === cat.id);
       const moveCategory = (direction: -1 | 1) => {
-        const target = siblings[siblingIndex + direction];
-        if (!target) return;
-        const currentOrder = cat.order ?? siblingIndex + 1;
-        const targetOrder = target.order ?? siblingIndex + direction + 1;
-        updateCategory(cat.id, { order: targetOrder });
-        updateCategory(target.id, { order: currentOrder });
-        showToast('ক্যাটাগরির অবস্থান আপডেট হয়েছে');
+        if (direction === -1 && siblingIndex <= 0) return;
+        if (direction === 1 && siblingIndex >= siblings.length - 1) return;
+        reorderCategory(cat.id, direction === -1 ? 'up' : 'down');
       };
 
       return (
