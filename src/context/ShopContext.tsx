@@ -91,6 +91,7 @@ interface ShopContextType {
     orderNote?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
+  refreshOrders: () => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
 
   // Settings
@@ -630,6 +631,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Order tracking lookup failed:', error);
       return undefined;
+    }
+  };
+
+  // Reload authoritative order data for the admin panel.
+  const refreshOrders = async (): Promise<boolean> => {
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remoteOrders = await supabaseFetch<any[]>(
+        '/rest/v1/halal_orders?select=*,halal_order_items(*)&order=created_at.desc',
+        { token }
+      );
+      if (!Array.isArray(remoteOrders)) throw new Error('Orders reload failed.');
+      setOrders(remoteOrders.map(mapRemoteOrder));
+      return true;
+    } catch (error) {
+      console.error('Supabase orders refresh failed:', error);
+      showToast('অর্ডারের সর্বশেষ তথ্য আনা যায়নি। আবার চেষ্টা করুন।');
+      return false;
     }
   };
 
