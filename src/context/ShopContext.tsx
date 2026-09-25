@@ -133,6 +133,8 @@ const generateProductSlug = (name: string, existingProducts: Product[], excludeI
   return finalSlug;
 };
 
+const isUuid = (value: string | null | undefined): boolean => Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value));
+
 const STORAGE_KEYS = {
   CART: 'halalshop_cart_v1',
   PRODUCTS: 'halalshop_products_v1',
@@ -692,185 +694,89 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Product CRUD
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<boolean> => {
     const newProduct: Product = {
-      ...productData,
-      id: typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `prod-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-      slug: generateProductSlug(productData.nameEn || productData.nameBn, products),
+      ...productData, id: crypto.randomUUID(), slug: generateProductSlug(productData.nameEn || productData.nameBn, products),
       price: Math.max(0, Number(productData.price) || 0),
       regularPrice: productData.regularPrice == null ? undefined : Math.max(0, Number(productData.regularPrice) || 0),
       stock: Math.max(0, Math.floor(Number(productData.stock) || 0)),
     };
-
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-
-      // Validate the selected category before sending the row. This prevents
-      // a stale/deleted category id from causing a foreign-key failure.
-      const selectedCategoryId = newProduct.categoryId || null;
-      if (selectedCategoryId && !categories.some((category) => category.id === selectedCategoryId)) {
-        throw new Error('Selected category no longer exists.');
-      }
-
-      const basePayload = {
-        id: newProduct.id,
-        name_bn: newProduct.nameBn.trim(),
-        name_en: newProduct.nameEn?.trim() || null,
-        category_id: selectedCategoryId,
-        category_ids: (newProduct.categoryIds || []).filter((id) =>
-          categories.some((category) => category.id === id)
-        ),
-        price: newProduct.price,
-        compare_at_price: newProduct.regularPrice ?? null,
-        stock: newProduct.stock,
-        image_url: newProduct.imageUrl?.trim() || null,
-        description: newProduct.descriptionBn?.trim() || null,
-        specs: Object.fromEntries(
-          (newProduct.specifications || [])
-            .filter((spec) => spec.label?.trim())
-            .map((spec) => [spec.label.trim(), spec.value ?? ''])
-        ),
-        is_active: newProduct.isActive !== false,
-        is_featured: newProduct.isFeatured === true,
-        is_popular: newProduct.isPopular === true,
+      const payload = {
+        id: newProduct.id, name_bn: newProduct.nameBn.trim(), name_en: newProduct.nameEn?.trim() || null,
+        slug: newProduct.slug, category_id: isUuid(newProduct.categoryId) ? newProduct.categoryId : null,
+        category_ids: (newProduct.categoryIds || []).filter(isUuid), price: newProduct.price,
+        compare_at_price: newProduct.regularPrice ?? null, stock: newProduct.stock,
+        image_url: newProduct.imageUrl?.trim() || null, description: newProduct.descriptionBn?.trim() || null,
+        specs: Object.fromEntries((newProduct.specifications || []).filter(s => s.label?.trim()).map(s => [s.label.trim(), s.value ?? ''])),
+        is_active: newProduct.isActive !== false, is_featured: newProduct.isFeatured === true, is_popular: newProduct.isPopular === true,
       };
-
-      let remote: any[] | undefined;
+      let remote: any[];
       try {
-        remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
-          method: 'POST',
-          token,
-          headers: { Prefer: 'return=representation' },
-          body: { ...basePayload, slug: newProduct.slug },
-        });
-      } catch (firstError) {
-        const message = firstError instanceof Error ? firstError.message : String(firstError);
-
-        // Slugs are unique in Supabase. If an old/remote product already uses
-        // the generated slug, retry once with a guaranteed-new slug.
-        if (/duplicate key|halal_products_slug_key|unique constraint|23505/i.test(message)) {
-          const retrySlug = generateProductSlug(
-            `${productData.nameEn || productData.nameBn}-${Date.now().toString(36)}`,
-            products
-          );
-          remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
-            method: 'POST',
-            token,
-            headers: { Prefer: 'return=representation' },
-            body: { ...basePayload, slug: retrySlug },
-          });
-          newProduct.slug = retrySlug;
-        } else {
-          throw firstError;
-        }
+        remote = await supabaseFetch<any[]>('/rest/v1/halal_products', { method:'POST', token, headers:{Prefer:'return=representation'}, body:payload });
+      } catch (e) {
+        const msg=e instanceof Error?e.message:String(e);
+        if (!/duplicate key|halal_products_slug_key|unique constraint|23505/i.test(msg)) throw e;
+        const slug=generateProductSlug(`${newProduct.nameEn || newProduct.nameBn}-${Date.now().toString(36)}`,products);
+        remote=await supabaseFetch<any[]>('/rest/v1/halal_products',{method:'POST',token,headers:{Prefer:'return=representation'},body:{...payload,slug}});
+        newProduct.slug=slug;
       }
-
-      if (!Array.isArray(remote) || remote.length !== 1) {
-        throw new Error('Product create affected no row.');
-      }
-
-      setProducts((prev) => [newProduct, ...prev.filter((product) => product.id !== newProduct.id)]);
-      showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error('Product create failed:', message, error);
-
-      if (/row-level security|permission denied|not authorized|JWT|PGRST301/i.test(message)) {
-        showToast('অ্যাডমিন অনুমতি পাওয়া যাচ্ছে না। পেজটি রিফ্রেশ করে আবার লগইন করুন।');
-      } else if (/foreign key|category_id/i.test(message)) {
-        showToast('নির্বাচিত ক্যাটাগরি পাওয়া যাচ্ছে না। ক্যাটাগরি আবার নির্বাচন করুন।');
-      } else if (/duplicate key|unique constraint|slug/i.test(message)) {
-        showToast('পণ্যের স্লাগ আগে থেকেই আছে। আবার সংরক্ষণ করুন।');
-      } else {
-        showToast('পণ্য সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।');
-      }
-      return false;
+      if (!Array.isArray(remote)||remote.length!==1) throw new Error('Product create affected no row.');
+      setProducts(prev=>[newProduct,...prev.filter(p=>p.id!==newProduct.id)]);
+      showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে'); return true;
+    } catch(error) {
+      console.error('Product create failed:',error);
+      showToast('পণ্য সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।'); return false;
     }
   };
 
   const updateProduct = async (id: string, updated: Partial<Product>): Promise<boolean> => {
-    const currentProduct = products.find((product) => product.id === id);
-    if (!currentProduct) return false;
-    const nextProduct: Product = {
-      ...currentProduct,
-      ...updated,
-      price: Math.max(0, Number(updated.price ?? currentProduct.price) || 0),
-      regularPrice: updated.regularPrice == null && currentProduct.regularPrice == null
-        ? undefined
-        : Math.max(0, Number(updated.regularPrice ?? currentProduct.regularPrice ?? 0) || 0),
-      stock: Math.max(0, Math.floor(Number(updated.stock ?? currentProduct.stock) || 0)),
-    };
-
+    const currentProduct=products.find(p=>p.id===id); if(!currentProduct) return false;
+    const nextProduct: Product={...currentProduct,...updated,
+      price:Math.max(0,Number(updated.price??currentProduct.price)||0),
+      regularPrice:updated.regularPrice==null&&currentProduct.regularPrice==null?undefined:Math.max(0,Number(updated.regularPrice??currentProduct.regularPrice??0)||0),
+      stock:Math.max(0,Math.floor(Number(updated.stock??currentProduct.stock)||0))};
     try {
-      const token = getSupabaseAccessToken();
-      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        token,
-        headers: { Prefer: 'return=representation' },
-        body: {
-          name_bn: nextProduct.nameBn,
-          name_en: nextProduct.nameEn || null,
-          category_id: nextProduct.categoryId || null,
-          category_ids: nextProduct.categoryIds || [],
-          price: nextProduct.price,
-          compare_at_price: nextProduct.regularPrice ?? null,
-          stock: nextProduct.stock,
-          image_url: nextProduct.imageUrl || null,
-          description: nextProduct.descriptionBn || null,
-          specs: Object.fromEntries((nextProduct.specifications || []).map((spec) => [spec.label, spec.value])),
-          is_active: nextProduct.isActive !== false,
-          is_featured: nextProduct.isFeatured === true,
-          is_popular: nextProduct.isPopular === true,
-        },
-      });
-      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product update affected no row.');
-      setProducts((prev) => prev.map((product) => (product.id === id ? nextProduct : product)));
-      showToast('পণ্যের তথ্য আপডেট করা হয়েছে');
-      return true;
-    } catch (error) {
-      console.error('Product update failed:', error);
-      showToast('পণ্যের তথ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
-      return false;
-    }
+      const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const body={
+        name_bn:nextProduct.nameBn.trim(), name_en:nextProduct.nameEn?.trim()||null,
+        category_id:isUuid(nextProduct.categoryId)?nextProduct.categoryId:null,
+        category_ids:(nextProduct.categoryIds||[]).filter(isUuid), price:nextProduct.price,
+        compare_at_price:nextProduct.regularPrice??null, stock:nextProduct.stock,
+        image_url:nextProduct.imageUrl?.trim()||null, description:nextProduct.descriptionBn?.trim()||null,
+        specs:Object.fromEntries((nextProduct.specifications||[]).filter(s=>s.label?.trim()).map(s=>[s.label.trim(),s.value??''])),
+        is_active:nextProduct.isActive!==false,is_featured:nextProduct.isFeatured===true,is_popular:nextProduct.isPopular===true};
+      if(!isUuid(id)){
+        const newId=crypto.randomUUID();
+        let remote:any[];
+        try{
+          remote=await supabaseFetch<any[]>('/rest/v1/halal_products',{method:'POST',token,headers:{Prefer:'return=representation'},body:{...body,id:newId,slug:nextProduct.slug||generateProductSlug(nextProduct.nameEn||nextProduct.nameBn,products)}});
+        }catch(e){
+          const msg=e instanceof Error?e.message:String(e); if(!/duplicate key|halal_products_slug_key|unique constraint|23505/i.test(msg)) throw e;
+          const slug=generateProductSlug(`${nextProduct.nameEn||nextProduct.nameBn}-${Date.now().toString(36)}`,products);
+          remote=await supabaseFetch<any[]>('/rest/v1/halal_products',{method:'POST',token,headers:{Prefer:'return=representation'},body:{...body,id:newId,slug}});
+          nextProduct.slug=slug;
+        }
+        if(!Array.isArray(remote)||remote.length!==1) throw new Error('Product promotion failed.');
+        setProducts(prev=>prev.map(p=>p.id===id?{...nextProduct,id:String(remote[0].id||newId)}:p));
+      }else{
+        const remote=await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',token,headers:{Prefer:'return=representation'},body});
+        if(!Array.isArray(remote)||remote.length!==1) throw new Error('Product update affected no row.');
+        setProducts(prev=>prev.map(p=>p.id===id?nextProduct:p));
+      }
+      showToast('পণ্যের তথ্য আপডেট করা হয়েছে'); return true;
+    }catch(error){console.error('Product update failed:',error);showToast('পণ্যের তথ্য সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।');return false;}
   };
 
-  const deleteProduct = async (id: string): Promise<boolean> => {
-    const target = products.find((product) => product.id === id);
-    if (!target) return false;
-    try {
-      const token = getSupabaseAccessToken();
-      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-
-      // Products are soft-deleted instead of physically removed so historical
-      // order items keep their product snapshot and cancellation can still
-      // restore stock safely when needed.
-      const remote = await supabaseFetch<any[]>(
-        `/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`,
-        {
-          method: 'PATCH',
-          token,
-          headers: { Prefer: 'return=representation' },
-          body: { is_active: false, updated_at: new Date().toISOString() },
-        }
-      );
-
-      if (!Array.isArray(remote) || remote.length !== 1) {
-        throw new Error('Product archive affected no row.');
-      }
-
-      setProducts((prev) => prev.map((product) =>
-        product.id === id ? { ...product, isActive: false } : product
-      ));
-      showToast('পণ্যটি আর্কাইভ করা হয়েছে। পুরোনো অর্ডার ইতিহাস অক্ষুণ্ণ থাকবে।');
-      return true;
-    } catch (error) {
-      console.error('Product archive failed:', error);
-      showToast('পণ্যটি আর্কাইভ করা যায়নি। কোনো পরিবর্তন করা হয়নি।');
-      return false;
-    }
+  const deleteProduct = async (id:string):Promise<boolean>=>{
+    const target=products.find(p=>p.id===id); if(!target) return false;
+    if(!isUuid(id)){setProducts(prev=>prev.map(p=>p.id===id?{...p,isActive:false}:p));showToast('পণ্যটি আর্কাইভ করা হয়েছে।');return true;}
+    try{
+      const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote=await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`,{method:'PATCH',token,headers:{Prefer:'return=representation'},body:{is_active:false,updated_at:new Date().toISOString()}});
+      if(!Array.isArray(remote)||remote.length!==1) throw new Error('Product archive affected no row.');
+      setProducts(prev=>prev.map(p=>p.id===id?{...p,isActive:false}:p));showToast('পণ্যটি আর্কাইভ করা হয়েছে।');return true;
+    }catch(error){console.error('Product archive failed:',error);showToast('পণ্যটি আর্কাইভ করা যায়নি।');return false;}
   };
 
   // Category Hierarchical Helpers & Actions
@@ -1108,27 +1014,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const adjustProductStock = async (productId: string, delta: number): Promise<boolean> => {
     if (!Number.isInteger(delta) || delta === 0) return false;
-    try {
-      const token = getSupabaseAccessToken();
-      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_stock', {
-        method: 'POST',
-        token,
-        body: { p_product_id: productId, p_delta: delta },
-      });
-      const nextStock = Number(remote?.stock);
-      if (!Number.isFinite(nextStock) || nextStock < 0) throw new Error('Invalid stock response.');
-      setProducts((prev) => prev.map((product) =>
-        product.id === productId ? { ...product, stock: nextStock } : product
-      ));
-      return true;
-    } catch (error) {
-      console.error('Inventory adjustment failed:', error);
-      showToast('স্টক আপডেট করা যায়নি। বর্তমান স্টক অপরিবর্তিত রাখা হয়েছে।');
-      return false;
+    const target=products.find(p=>p.id===productId); if(!target) return false;
+    if(!isUuid(productId)){
+      const nextStock=Math.max(0,target.stock+delta);
+      setProducts(prev=>prev.map(p=>p.id===productId?{...p,stock:nextStock}:p));
+      showToast(`"${target.nameBn}" স্টক ${delta>0?'বাড়ানো':'কমানো'} হয়েছে`); return true;
     }
+    try{
+      const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote=await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_stock',{method:'POST',token,body:{p_product_id:productId,p_delta:delta}});
+      const nextStock=Number(typeof remote==='number'?remote:remote?.stock??remote?.[0]?.stock);
+      if(!Number.isFinite(nextStock)||nextStock<0) throw new Error('Invalid stock response.');
+      setProducts(prev=>prev.map(p=>p.id===productId?{...p,stock:nextStock}:p));
+      showToast(`"${target.nameBn}" স্টক ${delta>0?'বাড়ানো':'কমানো'} হয়েছে`); return true;
+    }catch(error){console.error('Inventory adjustment failed:',error);showToast('স্টক আপডেট করা যায়নি। আবার চেষ্টা করুন।');return false;}
   };
-
   // Settings update
   const updateSettings = async (newSettings: Partial<WebsiteSettings>): Promise<boolean> => {
     const nextSettings: WebsiteSettings = {
