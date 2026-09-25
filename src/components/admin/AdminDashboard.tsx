@@ -54,6 +54,7 @@ export const AdminDashboard: React.FC = () => {
     deleteCategory,
     reorderCategory,
     updateOrderStatus,
+    updateOrderAmount,
     refreshOrders,
     getOrderStatusHistory,
     updateSettings,
@@ -206,6 +207,9 @@ export const AdminDashboard: React.FC = () => {
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [editingOrderAmountId, setEditingOrderAmountId] = useState<string | null>(null);
+  const [editingOrderAmount, setEditingOrderAmount] = useState('');
+  const [isSavingOrderAmount, setIsSavingOrderAmount] = useState(false);
   const ORDERS_PER_PAGE = 20;
   const [debouncedOrderSearchQuery, setDebouncedOrderSearchQuery] = useState('');
   const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
@@ -479,6 +483,38 @@ export const AdminDashboard: React.FC = () => {
       }
     } finally {
       setUpdatingOrderId(null);
+    }
+  };
+
+  const handleOrderAmountEditStart = (order: Order) => {
+    if (order.status === 'cancelled') {
+      showToast('বাতিল অর্ডারের অ্যামাউন্ট পরিবর্তন করা যাবে না।');
+      return;
+    }
+    setEditingOrderAmountId(order.id);
+    setEditingOrderAmount(String(order.total));
+  };
+
+  const handleOrderAmountSave = async () => {
+    if (!viewingOrder || isSavingOrderAmount) return;
+    const amount = Number(editingOrderAmount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      showToast('সঠিক অ্যামাউন্ট দিন।');
+      return;
+    }
+
+    setIsSavingOrderAmount(true);
+    try {
+      const updatedTotal = await updateOrderAmount(viewingOrder.id, amount);
+      if (updatedTotal !== null) {
+        setViewingOrder((current) =>
+          current?.id === viewingOrder.id ? { ...current, total: updatedTotal } : current
+        );
+        setEditingOrderAmountId(null);
+        setEditingOrderAmount('');
+      }
+    } finally {
+      setIsSavingOrderAmount(false);
     }
   };
 
@@ -1645,7 +1681,62 @@ export const AdminDashboard: React.FC = () => {
               <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-2 text-xs">
                 <div className="flex justify-between"><span className="text-stone-500">পণ্যের মোট</span><strong>{formatPrice(viewingOrder.subtotal)}</strong></div>
                 <div className="flex justify-between"><span className="text-stone-500">ডেলিভারি চার্জ</span><strong>{formatPrice(viewingOrder.deliveryCharge)}</strong></div>
-                <div className="flex justify-between pt-2 border-t border-stone-200 text-sm"><span className="font-bold">সর্বমোট</span><strong className="text-emerald-800">{formatPrice(viewingOrder.total)}</strong></div>
+                <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm gap-3">
+                  <span className="font-bold">সর্বমোট</span>
+                  {editingOrderAmountId === viewingOrder.id ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">৳</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={editingOrderAmount}
+                          onChange={(e) => setEditingOrderAmount(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void handleOrderAmountSave();
+                            if (e.key === 'Escape') { setEditingOrderAmountId(null); setEditingOrderAmount(''); }
+                          }}
+                          disabled={isSavingOrderAmount}
+                          autoFocus
+                          className="w-32 pl-6 pr-2 py-1.5 rounded-lg border border-emerald-300 bg-white text-right font-black text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleOrderAmountSave()}
+                        disabled={isSavingOrderAmount}
+                        className="px-2.5 py-1.5 rounded-lg bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-50"
+                      >
+                        {isSavingOrderAmount ? 'সংরক্ষণ...' : 'সংরক্ষণ'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingOrderAmountId(null); setEditingOrderAmount(''); }}
+                        disabled={isSavingOrderAmount}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-stone-300 text-stone-600 text-[11px] font-bold disabled:opacity-50"
+                      >
+                        বাতিল
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <strong className="text-emerald-800">{formatPrice(viewingOrder.total)}</strong>
+                      {viewingOrder.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => handleOrderAmountEditStart(viewingOrder)}
+                          className="p-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-100"
+                          title="অর্ডারের মোট অ্যামাউন্ট এডিট করুন"
+                          aria-label="অর্ডারের মোট অ্যামাউন্ট এডিট করুন"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-stone-400 pt-1">প্রয়োজনে সর্বমোট অ্যামাউন্ট পরিবর্তন করে সংরক্ষণ করতে পারবেন।</p>
               </div>
 
               <div className="border border-stone-200 rounded-2xl p-4">
