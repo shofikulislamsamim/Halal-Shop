@@ -199,7 +199,7 @@ export const Header: React.FC = () => {
             {/* Order Tracking (Desktop) */}
             <button
               onClick={() => navigateTo('track')}
-              className={`hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 currentView === 'track'
                   ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
                   : 'text-stone-600 hover:bg-stone-100'
@@ -207,7 +207,7 @@ export const Header: React.FC = () => {
               id="desktop-track-btn"
             >
               <Truck className="w-4 h-4 text-emerald-700" />
-              <span>অর্ডার ট্র্যাকিং</span>
+              <span>আমার অর্ডার</span>
             </button>
 
             {/* Cart Trigger Button */}
