@@ -5,7 +5,6 @@ import {
   Search,
   Truck,
   MessageCircle,
-  Lock,
   X,
   ArrowRight,
   Sparkles,
