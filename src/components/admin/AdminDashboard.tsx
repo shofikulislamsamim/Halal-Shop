@@ -43,6 +43,7 @@ export const AdminDashboard: React.FC = () => {
     verifyAdminLogin,
     addProduct,
     updateProduct,
+    adjustProductStock,
     deleteProduct,
     addCategory,
     updateCategory,
@@ -407,6 +408,39 @@ export const AdminDashboard: React.FC = () => {
   });
 
 
+
+  const orderStatusLabels: Record<OrderStatus, string> = {
+    pending: 'পেন্ডিং',
+    confirmed: 'কনফার্মড',
+    processing: 'প্রসেসিং',
+    shipped: 'শিপড',
+    delivered: 'ডেলিভারড',
+    cancelled: 'বাতিল',
+  };
+
+  const getNextOrderStatuses = (status: OrderStatus): OrderStatus[] => {
+    switch (status) {
+      case 'pending':
+        return ['confirmed', 'cancelled'];
+      case 'confirmed':
+        return ['processing', 'cancelled'];
+      case 'processing':
+        return ['shipped', 'cancelled'];
+      case 'shipped':
+        return ['delivered'];
+      default:
+        return [];
+    }
+  };
+
+  const handleOrderStatusChange = async (orderId: string, status: OrderStatus) => {
+    const success = await updateOrderStatus(orderId, status);
+    if (success) {
+      setViewingOrder((current) =>
+        current?.id === orderId ? { ...current, status } : current
+      );
+    }
+  };
 
   // Calculate order stats
   const totalRevenue = orders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.total : sum), 0);
@@ -812,14 +846,126 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================= */}
       {activeTab === 'orders' && (
         <div className="space-y-4">
-          {/* Filters Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <input
+                type="search"
+                value={orderSearchQuery}
+                onChange={(e) => setOrderSearchQuery(e.target.value)}
+                placeholder="অর্ডার নম্বর, নাম, ফোন বা ঠিকানা দিয়ে খুঁজুন..."
+                className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+                aria-label="অর্ডার খুঁজুন"
+              />
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              {orderSearchQuery && (
+                <button type="button" onClick={() => setOrderSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1" aria-label="অর্ডার সার্চ পরিষ্কার করুন">✕</button>
+              )}
+            </div>
+            <select
+              value={orderStatusFilter}
+              onChange={(e) => setOrderStatusFilter(e.target.value)}
+              className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300"
+              aria-label="অর্ডার স্ট্যাটাস ফিল্টার"
+            >
+              <option value="all">সব স্ট্যাটাস</option>
+              <option value="pending">পেন্ডিং</option>
+              <option value="confirmed">কনফার্মড</option>
+              <option value="processing">প্রসেসিং</option>
+              <option value="shipped">শিপড</option>
+              <option value="delivered">ডেলিভারড</option>
+              <option value="cancelled">বাতিল</option>
+            </select>
+          </div>
+
+          {filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">
+              এই ফিল্টারে কোনো অর্ডার পাওয়া যায়নি।
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredOrders.map((order) => {
+                const nextStatuses = getNextOrderStatuses(order.status);
+                const statusClass =
+                  order.status === 'pending' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                  order.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                  order.status === 'delivered' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                  'bg-sky-50 text-sky-800 border-sky-200';
+
+                return (
+                  <div key={order.id} className="bg-white rounded-2xl border border-stone-200 p-4 shadow-2xs">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-black text-stone-900">#{order.id}</span>
+                          <span className={'px-2 py-1 rounded-full border text-[10px] font-bold ' + statusClass}>
+                            {orderStatusLabels[order.status]}
+                          </span>
+                        </div>
+                        <div className="text-xs text-stone-600 mt-1">{order.customerName} · {order.mobile}</div>
+                        <div className="text-[11px] text-stone-400 mt-1">
+                          {new Date(order.createdAt).toLocaleString('bn-BD')} · {order.items.length}টি আইটেম
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between lg:justify-end gap-3">
+                        <div className="text-right">
+                          <div className="text-[10px] text-stone-500">মোট</div>
+                          <div className="font-black text-emerald-800">{formatPrice(order.total)}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setViewingOrder(order)}
+                          className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold flex items-center gap-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> বিস্তারিত
+                        </button>
+                      </div>
+                    </div>
+
+                    {nextStatuses.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-stone-100 flex flex-col sm:flex-row sm:items-center gap-2">
+                        <span className="text-[11px] font-semibold text-stone-500">পরবর্তী স্ট্যাটাস:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {nextStatuses.map((nextStatus) => (
+                            <button
+                              key={nextStatus}
+                              type="button"
+                              onClick={() => {
+                                if (nextStatus === 'cancelled' && !window.confirm('এই অর্ডারটি বাতিল করলে সংশ্লিষ্ট পণ্যের স্টক পুনরায় যোগ হবে। আপনি কি নিশ্চিত?')) return;
+                                void handleOrderStatusChange(order.id, nextStatus);
+                              }}
+                              className={'px-3 py-1.5 rounded-lg text-[11px] font-bold ' + (
+                                nextStatus === 'cancelled'
+                                  ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                                  : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                              )}
+                            >
+                              → {orderStatusLabels[nextStatus]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* 3. INVENTORY TAB */}
+      {/* ========================================================= */}
+      {activeTab === 'inventory' && (
+        <div className="space-y-4">
           <div className="bg-white p-4 rounded-2xl border border-stone-200 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <input type="search" value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} placeholder="পণ্যের নাম দিয়ে স্টক খুঁজুন..." className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600" aria-label="স্টক পণ্য খুঁজুন" />
               <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
               {inventorySearch && <button type="button" onClick={() => setInventorySearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs p-1" aria-label="স্টক সার্চ পরিষ্কার করুন">✕</button>}
             </div>
-            <select value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value as typeof inventoryFilter)} className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden" aria-label="স্টক ফিল্টার">
+            <select value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value as typeof inventoryFilter)} className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300" aria-label="স্টক ফিল্টার">
               <option value="all">সব স্টক</option><option value="out">স্টক শেষ</option><option value="low">কম স্টক (১–৩)</option><option value="in">পর্যাপ্ত স্টক (৪+)</option>
             </select>
           </div>
@@ -842,7 +988,7 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div className="min-w-0"><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn || '—'}</div></div></div></td>
                       <td className="p-3 font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</td>
                       <td className="p-3"><span className={'inline-flex px-2 py-1 rounded-full border text-[11px] font-bold ' + statusClass}>{statusText}</span></td>
-                      <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button><button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button></div></td>
+                      <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => void adjustProductStock(prod.id, -1)} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button><button type="button" onClick={() => void adjustProductStock(prod.id, 1)} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button></div></td>
                     </tr>;
                   })}
                 </tbody>
@@ -861,13 +1007,14 @@ export const AdminDashboard: React.FC = () => {
                 const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= 3 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
                 return <div key={prod.id} className="p-3.5 space-y-3">
                   <div className="flex items-center gap-3"><img src={prod.imageUrl} alt={prod.nameBn} className="w-12 h-12 rounded-xl object-cover bg-stone-100 shrink-0" /><div className="min-w-0 flex-1"><div className="font-bold text-stone-900 truncate">{prod.nameBn}</div><div className="text-[11px] text-stone-400 truncate">{prod.nameEn || '—'}</div></div><span className={'shrink-0 px-2 py-1 rounded-lg border text-[10px] font-bold ' + statusClass}>{statusText}</span></div>
-                  <div className="flex items-center justify-between gap-3"><div><div className="text-[10px] text-stone-500">বর্তমান স্টক</div><div className="font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</div></div><div className="flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => updateProduct(prod.id, { stock: Math.max(0, prod.stock - 1) })} className="w-9 h-9 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" aria-label={prod.nameBn + ' থেকে ১ কমান'}>−</button><button type="button" onClick={() => updateProduct(prod.id, { stock: prod.stock + 1 })} className="w-9 h-9 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" aria-label={prod.nameBn + ' ১ বাড়ান'}>+</button></div></div>
+                  <div className="flex items-center justify-between gap-3"><div><div className="text-[10px] text-stone-500">বর্তমান স্টক</div><div className="font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</div></div><div className="flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => void adjustProductStock(prod.id, -1)} className="w-9 h-9 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" aria-label={prod.nameBn + ' থেকে ১ কমান'}>−</button><button type="button" onClick={() => void adjustProductStock(prod.id, 1)} className="w-9 h-9 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" aria-label={prod.nameBn + ' ১ বাড়ান'}>+</button></div></div>
                 </div>;
               })}
             </div>
           </div>
         </div>
       )}
+
       {/* ========================================================= */}
       {/* 4. CATEGORIES TAB */}
       {/* ========================================================= */}
