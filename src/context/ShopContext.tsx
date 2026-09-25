@@ -705,35 +705,87 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
-        method: 'POST',
-        token,
-        headers: { Prefer: 'return=representation' },
-        body: {
-          id: newProduct.id,
-          name_bn: newProduct.nameBn,
-          name_en: newProduct.nameEn || null,
-          slug: newProduct.slug,
-          category_id: newProduct.categoryId || null,
-          category_ids: newProduct.categoryIds || [],
-          price: newProduct.price,
-          compare_at_price: newProduct.regularPrice ?? null,
-          stock: newProduct.stock,
-          image_url: newProduct.imageUrl || null,
-          description: newProduct.descriptionBn || null,
-          specs: Object.fromEntries((newProduct.specifications || []).map((spec) => [spec.label, spec.value])),
-          is_active: newProduct.isActive !== false,
-          is_featured: newProduct.isFeatured === true,
-          is_popular: newProduct.isPopular === true,
-        },
-      });
-      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product create affected no row.');
+
+      // Validate the selected category before sending the row. This prevents
+      // a stale/deleted category id from causing a foreign-key failure.
+      const selectedCategoryId = newProduct.categoryId || null;
+      if (selectedCategoryId && !categories.some((category) => category.id === selectedCategoryId)) {
+        throw new Error('Selected category no longer exists.');
+      }
+
+      const basePayload = {
+        id: newProduct.id,
+        name_bn: newProduct.nameBn.trim(),
+        name_en: newProduct.nameEn?.trim() || null,
+        category_id: selectedCategoryId,
+        category_ids: (newProduct.categoryIds || []).filter((id) =>
+          categories.some((category) => category.id === id)
+        ),
+        price: newProduct.price,
+        compare_at_price: newProduct.regularPrice ?? null,
+        stock: newProduct.stock,
+        image_url: newProduct.imageUrl?.trim() || null,
+        description: newProduct.descriptionBn?.trim() || null,
+        specs: Object.fromEntries(
+          (newProduct.specifications || [])
+            .filter((spec) => spec.label?.trim())
+            .map((spec) => [spec.label.trim(), spec.value ?? ''])
+        ),
+        is_active: newProduct.isActive !== false,
+        is_featured: newProduct.isFeatured === true,
+        is_popular: newProduct.isPopular === true,
+      };
+
+      let remote: any[] | undefined;
+      try {
+        remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
+          method: 'POST',
+          token,
+          headers: { Prefer: 'return=representation' },
+          body: { ...basePayload, slug: newProduct.slug },
+        });
+      } catch (firstError) {
+        const message = firstError instanceof Error ? firstError.message : String(firstError);
+
+        // Slugs are unique in Supabase. If an old/remote product already uses
+        // the generated slug, retry once with a guaranteed-new slug.
+        if (/duplicate key|halal_products_slug_key|unique constraint|23505/i.test(message)) {
+          const retrySlug = generateProductSlug(
+            `${productData.nameEn || productData.nameBn}-${Date.now().toString(36)}`,
+            products
+          );
+          remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
+            method: 'POST',
+            token,
+            headers: { Prefer: 'return=representation' },
+            body: { ...basePayload, slug: retrySlug },
+          });
+          newProduct.slug = retrySlug;
+        } else {
+          throw firstError;
+        }
+      }
+
+      if (!Array.isArray(remote) || remote.length !== 1) {
+        throw new Error('Product create affected no row.');
+      }
+
       setProducts((prev) => [newProduct, ...prev.filter((product) => product.id !== newProduct.id)]);
       showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
       return true;
     } catch (error) {
-      console.error('Product create failed:', error);
-      showToast('পণ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি যোগ করা হয়নি।');
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Product create failed:', message, error);
+
+      if (/row-level security|permission denied|not authorized|JWT|PGRST301/i.test(message)) {
+        showToast('অ্যাডমিন অনুমতি পাওয়া যাচ্ছে না। পেজটি রিফ্রেশ করে আবার লগইন করুন।');
+      } else if (/foreign key|category_id/i.test(message)) {
+        showToast('নির্বাচিত ক্যাটাগরি পাওয়া যাচ্ছে না। ক্যাটাগরি আবার নির্বাচন করুন।');
+      } else if (/duplicate key|unique constraint|slug/i.test(message)) {
+        showToast('পণ্যের স্লাগ আগে থেকেই আছে। আবার সংরক্ষণ করুন।');
+      } else {
+        showToast('পণ্য সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।');
+      }
       return false;
     }
   };
