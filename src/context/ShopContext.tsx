@@ -986,61 +986,75 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const moveCategory = (id: string, newParentId: string | null) => {
-    return updateCategory(id, { parentId: newParentId });
+    const target = categories.find((category) => category.id === id);
+    if (!target) return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
+
+    const normalizedParentId = newParentId || null;
+    if (normalizedParentId === id || (normalizedParentId && isDescendantOrSelf(normalizedParentId, id, categories))) {
+      showToast('ভুল প্যারেন্ট: কোনো ক্যাটাগরিকে নিজের বা নিজের সাব-ক্যাটাগরির অধীনে নেওয়া যাবে না');
+      return { success: false, message: 'সার্কুলার রিলেশনশিপ অনুমোদিত নয়' };
+    }
+
+    if (normalizedParentId && !categories.some((category) => category.id === normalizedParentId)) {
+      return { success: false, message: 'প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি' };
+    }
+
+    // A moved category should join the end of its new sibling group rather
+    // than keeping an order number from its previous parent.
+    const siblingOrders = categories
+      .filter((category) => (category.parentId || null) === normalizedParentId && category.id !== id)
+      .map((category) => Number(category.order ?? 0));
+    const nextOrder = siblingOrders.length ? Math.max(...siblingOrders) + 1 : 1;
+
+    return updateCategory(id, {
+      parentId: normalizedParentId,
+      order: nextOrder,
+    });
   };
 
   const reorderCategory = (id: string, direction: 'up' | 'down') => {
-    const target = categories.find((c) => c.id === id);
+    const target = categories.find((category) => category.id === id);
     if (!target) return;
-
-    const parentId = target.parentId || null;
-    const siblings = categories
-      .filter((c) => (c.parentId || null) === parentId)
-      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    const currentIndex = siblings.findIndex((c) => c.id === id);
-    if (currentIndex === -1) return;
-
-    const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (swapIndex < 0 || swapIndex >= siblings.length) return;
-
-    const neighbor = siblings[swapIndex];
-    const targetOrder = target.order ?? currentIndex;
-    const neighborOrder = neighbor.order ?? swapIndex;
-
-    const newTargetOrder = targetOrder === neighborOrder ? (direction === 'up' ? targetOrder - 1 : targetOrder + 1) : neighborOrder;
-    const newNeighborOrder = targetOrder;
-
-    const updatedAt = new Date().toISOString();
-    setCategories((prev) =>
-      prev.map((c) => {
-        if (c.id === target.id) return { ...c, order: newTargetOrder, updatedAt };
-        if (c.id === neighbor.id) return { ...c, order: newNeighborOrder, updatedAt };
-        return c;
-      })
-    );
 
     void (async () => {
       try {
         const token = getSupabaseAccessToken();
         if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await Promise.all([
-          supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(target.id)}`, {
-            method: 'PATCH', token,
-            body: { sort_order: newTargetOrder, updated_at: updatedAt },
-          }),
-          supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(neighbor.id)}`, {
-            method: 'PATCH', token,
-            body: { sort_order: newNeighborOrder, updated_at: updatedAt },
-          }),
-        ]);
+
+        await supabaseFetch('/rest/v1/rpc/admin_reorder_halal_categories', {
+          method: 'POST',
+          token,
+          body: {
+            p_category_id: id,
+            p_direction: direction,
+          },
+        });
+
+        // Reload the authoritative sibling order so local state matches the
+        // transaction even when another admin tab changed categories at the
+        // same time.
+        const remoteCategories = await supabaseFetch<any[]>(
+          '/rest/v1/halal_categories?select=*&order=sort_order.asc',
+          { token }
+        );
+
+        if (Array.isArray(remoteCategories)) {
+          setCategories(remoteCategories.map((cat) => ({
+            id: cat.id,
+            nameBn: cat.name_bn,
+            nameEn: cat.name_en || '',
+            slug: cat.slug,
+            parentId: cat.parent_id,
+            icon: cat.icon || undefined,
+            isActive: cat.is_active !== false,
+            order: Number(cat.sort_order || 0),
+            createdAt: cat.created_at,
+            updatedAt: cat.updated_at,
+          })));
+        }
+        showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা হয়েছে');
       } catch (error) {
         console.error('Category reorder failed:', error);
-        setCategories((prev) => prev.map((c) => {
-          if (c.id === target.id) return { ...c, order: targetOrder };
-          if (c.id === neighbor.id) return { ...c, order: neighborOrder };
-          return c;
-        }));
         showToast('ক্যাটাগরির ক্রম সংরক্ষণ করা যায়নি।');
       }
     })();
