@@ -653,60 +653,53 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const orderStatusLabelForToast = (status: OrderStatus): string => ({ pending: 'পেন্ডিং', confirmed: 'কনফার্মড', processing: 'প্রসেসিং', shipped: 'শিপড', delivered: 'ডেলিভারড', cancelled: 'বাতিল' })[status];
+
   // Admin order status update
   const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
     const current = orders.find((order) => order.id === orderId);
     if (!current || current.status === status) return false;
-
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
       const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_update_halal_order_status', {
-        method: 'POST',
-        token,
-        body: { p_order_code: orderId, p_status: status },
+        method: 'POST', token, body: { p_order_code: orderId, p_status: status },
       });
-      const updatedStatus = remote?.status as OrderStatus | undefined;
-      setOrders((prev) => prev.map((order) => (
-        order.id === orderId
-          ? { ...order, status: updatedStatus || status }
-          : order
-      )));
-      if (status === 'cancelled') {
-        // Cancellation restores stock inside the database transaction. Reload
-        // authoritative product rows instead of incrementing local stock,
-        // which could overwrite a concurrent inventory change.
-        const remoteProducts = await supabaseFetch<any[]>(
-          '/rest/v1/halal_products?select=*&order=created_at.desc',
-          { token }
-        );
-        if (!Array.isArray(remoteProducts)) throw new Error('Inventory reload failed after cancellation.');
-        setProducts(remoteProducts.map((product) => ({
-          id: product.id,
-          nameBn: product.name_bn,
-          slug: product.slug || undefined,
-          nameEn: product.name_en || '',
-          categoryId: product.category_id || '',
-          categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
-          price: Number(product.price || 0),
-          regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
-          stock: Number(product.stock || 0),
-          imageUrl: product.image_url || '',
-          descriptionBn: product.description || '',
-          specifications: Object.entries(product.specs || {}).map(([label, value]) => ({
-            label,
-            value: String(value ?? ''),
-          })),
-          isFeatured: product.is_featured === true,
-          isPopular: product.is_popular === true,
-          isActive: product.is_active !== false,
-        })));
+      const updatedStatus = (remote?.status as OrderStatus | undefined) || status;
+      setOrders((prev) => prev.map((order) => order.id === orderId ? { ...order, status: updatedStatus } : order));
+
+      if (updatedStatus === 'cancelled') {
+        try {
+          const remoteProducts = await supabaseFetch<any[]>('/rest/v1/halal_products?select=*&order=created_at.desc', { token });
+          if (!Array.isArray(remoteProducts)) throw new Error('Inventory reload returned invalid data.');
+          setProducts(remoteProducts.map((product) => ({
+            id: product.id, nameBn: product.name_bn, slug: product.slug || undefined, nameEn: product.name_en || '',
+            categoryId: product.category_id || '', categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
+            price: Number(product.price || 0), regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
+            stock: Number(product.stock || 0), imageUrl: product.image_url || '', descriptionBn: product.description || '',
+            specifications: Object.entries(product.specs || {}).map(([label, value]) => ({ label, value: String(value ?? '') })),
+            isFeatured: product.is_featured === true, isPopular: product.is_popular === true, isActive: product.is_active !== false,
+          })));
+        } catch (inventoryError) {
+          console.error('Inventory refresh after cancellation failed:', inventoryError);
+          showToast('অর্ডার বাতিল হয়েছে, তবে স্টকের সর্বশেষ তথ্য রিফ্রেশ করা যায়নি। পরে রিফ্রেশ করুন।');
+        }
       }
-      showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
+
+      showToast('অর্ডার #' + orderId + ' এর স্ট্যাটাস ' + orderStatusLabelForToast(updatedStatus) + ' করা হয়েছে');
       return true;
     } catch (error) {
       console.error('Order status update failed:', error);
-      showToast('অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      const raw = error instanceof Error ? error.message : '';
+      let message = 'অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।';
+      try {
+        const parsed = JSON.parse(raw);
+        const serverMessage = parsed?.message || parsed?.error_description || parsed?.details;
+        if (typeof serverMessage === 'string' && serverMessage.trim()) message = serverMessage.trim();
+      } catch {
+        if (raw && raw.length < 220 && !raw.includes('<')) message = raw;
+      }
+      showToast(message);
       return false;
     }
   };
