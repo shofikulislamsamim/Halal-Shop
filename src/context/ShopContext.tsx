@@ -1310,6 +1310,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastCreatedOrder,
         placeOrder,
         getOrderByIdAndPhone,
+        getOrdersByPhone,
         getOrderStatusHistory,
         refreshOrders,
         updateOrderStatus,
