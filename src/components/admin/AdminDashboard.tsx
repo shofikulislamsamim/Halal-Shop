@@ -1517,93 +1517,156 @@ export const AdminDashboard: React.FC = () => {
       {/* VIEW ORDER DETAILS MODAL */}
       {/* ========================================================= */}
       {viewingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-stone-100">
-              <h3 className="text-lg font-bold text-stone-900">
-                অর্ডার বিস্তারিত: #{viewingOrder.id}
-              </h3>
-              <button
-                onClick={() => setViewingOrder(null)}
-                className="text-stone-400 hover:text-stone-700 p-1"
-              >
-                ✕
-              </button>
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="admin-order-details-title"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setViewingOrder(null); }}
+        >
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 z-10 bg-white/95 backdrop-blur px-5 sm:px-6 py-4 border-b border-stone-100 flex items-center justify-between">
+              <div className="min-w-0">
+                <h3 id="admin-order-details-title" className="text-lg font-black text-stone-900 truncate">
+                  অর্ডার #{viewingOrder.id}
+                </h3>
+                <p className="text-[11px] text-stone-500 mt-0.5">
+                  {new Date(viewingOrder.createdAt).toLocaleString('bn-BD')} · {orderStatusLabels[viewingOrder.status]}
+                </p>
+              </div>
+              <button type="button" onClick={() => setViewingOrder(null)} className="text-stone-400 hover:text-stone-700 p-2 rounded-xl hover:bg-stone-100" aria-label="অর্ডার বন্ধ করুন">✕</button>
             </div>
 
-            <div className="bg-stone-50 p-4 rounded-2xl text-xs sm:text-sm space-y-2 border border-stone-200">
-              <div>
-                <strong>গ্রাহক:</strong> {viewingOrder.customerName}
+            <div className="p-5 sm:p-6 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center"><Phone className="w-4 h-4" /></div>
+                    <div>
+                      <p className="text-[10px] text-stone-500 font-semibold">গ্রাহক</p>
+                      <p className="text-sm font-black text-stone-900">{viewingOrder.customerName}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={'tel:' + viewingOrder.mobile} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-700 text-white text-[11px] font-bold">
+                      <Phone className="w-3.5 h-3.5" /> কল
+                    </a>
+                    <a
+                      href={'https://wa.me/' + viewingOrder.mobile.replace(/\D/g, '')}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-900 text-white text-[11px] font-bold"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                    </a>
+                  </div>
+                  {viewingOrder.altMobile && <p className="text-[11px] text-stone-500 mt-3">বিকল্প নম্বর: {viewingOrder.altMobile}</p>}
+                </div>
+
+                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200">
+                  <p className="text-[10px] text-stone-500 font-semibold mb-1">পেমেন্ট</p>
+                  <p className="text-sm font-black text-stone-900">Cash on Delivery</p>
+                  <p className="text-[11px] text-stone-500 mt-2">পেমেন্ট স্ট্যাটাস: অর্ডার ডেলিভারি অনুযায়ী পরিচালিত হবে</p>
+                </div>
               </div>
-              <div>
-                <strong>ফোন:</strong> {viewingOrder.mobile}{' '}
-                {viewingOrder.altMobile && `(বিকল্প: ${viewingOrder.altMobile})`}
+
+              <div className="bg-white rounded-2xl border border-stone-200 p-4">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <h4 className="font-black text-sm text-stone-900 flex items-center gap-2"><MapPin className="w-4 h-4 text-emerald-700" /> ডেলিভারি ঠিকানা</h4>
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-stone-100 text-stone-600">{viewingOrder.address.locationType === 'urban' ? 'শহর' : 'গ্রাম'}</span>
+                </div>
+                <div className="text-xs text-stone-700 leading-6">
+                  <p><strong>বিভাগ:</strong> {viewingOrder.address.division || '—'}</p>
+                  <p><strong>জেলা:</strong> {viewingOrder.address.district || '—'}</p>
+                  <p><strong>উপজেলা/থানা:</strong> {viewingOrder.address.upazilaThana || '—'}</p>
+                  {(viewingOrder.address.area || viewingOrder.address.union || viewingOrder.address.village) && (
+                    <p><strong>এলাকা:</strong> {[viewingOrder.address.area, viewingOrder.address.union, viewingOrder.address.village].filter(Boolean).join(' · ')}</p>
+                  )}
+                  <p><strong>বিস্তারিত:</strong> {viewingOrder.address.detailedAddress || viewingOrder.address.formattedFullAddress || '—'}</p>
+                </div>
               </div>
-              <div>
-                <strong>এলাকার ধরন:</strong>{' '}
-                {viewingOrder.address.locationType === 'urban'
-                  ? 'শহর (Urban)'
-                  : 'গ্রাম / উপজেলা (Rural)'}
-              </div>
-              <div>
-                <strong>সম্পূর্ণ ঠিকানা:</strong> {viewingOrder.address.formattedFullAddress}
-              </div>
+
               {viewingOrder.orderNote && (
-                <div className="text-stone-600 italic">
-                  <strong>নোট:</strong> "{viewingOrder.orderNote}"
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <p className="text-[10px] font-bold text-amber-800 mb-1">📝 Customer Note</p>
+                  <p className="text-xs text-amber-900 leading-5">{viewingOrder.orderNote}</p>
                 </div>
               )}
-            </div>
 
-            <div>
-              <h4 className="font-bold text-sm text-stone-900 mb-2">পণ্যের তালিকা:</h4>
-              <div className="divide-y divide-stone-100 border rounded-xl overflow-hidden">
-                {viewingOrder.items.map((item, idx) => (
-                  <div key={idx} className="p-3 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={item.imageUrl}
-                        alt=""
-                        className="w-8 h-8 rounded-md object-cover bg-stone-100"
-                      />
-                      <span>
-                        {item.nameBn} x {item.quantity}
-                      </span>
+              <div>
+                <h4 className="font-black text-sm text-stone-900 mb-2">পণ্যের তালিকা ({viewingOrder.items.length})</h4>
+                <div className="divide-y divide-stone-100 border border-stone-200 rounded-2xl overflow-hidden">
+                  {viewingOrder.items.map((item, idx) => (
+                    <div key={idx} className="p-3 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img src={item.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover bg-stone-100 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-bold text-stone-900 truncate">{item.nameBn}</p>
+                          <p className="text-[11px] text-stone-500">{formatPrice(item.price)} × {item.quantity}</p>
+                        </div>
+                      </div>
+                      <span className="font-black text-stone-900 shrink-0">{formatPrice(item.total)}</span>
                     </div>
-                    <span className="font-bold">{formatPrice(item.total)}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="flex justify-between items-center text-sm font-bold pt-2">
-              <span>সর্বমোট প্রদেয় (ক্যাশ অন ডেলিভারি):</span>
-              <span className="text-base text-emerald-800">{formatPrice(viewingOrder.total)}</span>
-            </div>
+              <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-2 text-xs">
+                <div className="flex justify-between"><span className="text-stone-500">পণ্যের মোট</span><strong>{formatPrice(viewingOrder.subtotal)}</strong></div>
+                <div className="flex justify-between"><span className="text-stone-500">ডেলিভারি চার্জ</span><strong>{formatPrice(viewingOrder.deliveryCharge)}</strong></div>
+                <div className="flex justify-between pt-2 border-t border-stone-200 text-sm"><span className="font-bold">সর্বমোট</span><strong className="text-emerald-800">{formatPrice(viewingOrder.total)}</strong></div>
+              </div>
 
-            <div className="flex justify-between items-center pt-3 border-t">
-              <button
-                onClick={() => {
-                  if (!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)) {
-                    showToast('অর্ডার Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে');
-                    return;
-                  }
-                  window.print();
-                }}
-                disabled={!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)}
-                className="bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
-                title={['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status) ? 'ইনভয়েস প্রিন্ট/Save as PDF' : 'Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে'}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>ইনভয়েস</span>
-              </button>
+              <div className="border border-stone-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-black text-sm text-stone-900">অর্ডার স্ট্যাটাস</h4>
+                  <span className="text-[10px] font-bold text-stone-500">বর্তমান: {orderStatusLabels[viewingOrder.status]}</span>
+                </div>
+                {getNextOrderStatuses(viewingOrder.status).length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {getNextOrderStatuses(viewingOrder.status).map((nextStatus) => (
+                      <button
+                        key={nextStatus}
+                        type="button"
+                        disabled={Boolean(updatingOrderId)}
+                        onClick={() => {
+                          if (nextStatus === 'cancelled' && !window.confirm('এই অর্ডারটি বাতিল করলে সংশ্লিষ্ট পণ্যের স্টক পুনরায় যোগ হবে। আপনি কি নিশ্চিত?')) return;
+                          void handleOrderStatusChange(viewingOrder.id, nextStatus);
+                        }}
+                        className={'px-3 py-2 rounded-xl text-[11px] font-bold border disabled:opacity-50 disabled:cursor-not-allowed ' + (
+                          nextStatus === 'cancelled'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                            : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                        )}
+                      >
+                        {updatingOrderId === viewingOrder.id ? 'আপডেট হচ্ছে...' : '→ ' + orderStatusLabels[nextStatus]}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-500">এই অর্ডারের জন্য আর কোনো status transition নেই।</p>
+                )}
+              </div>
 
-              <button
-                onClick={() => setViewingOrder(null)}
-                className="bg-emerald-700 text-white text-xs px-4 py-2 rounded-xl font-bold"
-              >
-                বন্ধ করুন
-              </button>
+              <div className="flex flex-wrap justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)) {
+                      showToast('অর্ডার Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে');
+                      return;
+                    }
+                    window.print();
+                  }}
+                  disabled={!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)}
+                  className="bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" /> ইনভয়েস
+                </button>
+                <button type="button" onClick={() => setViewingOrder(null)} className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded-xl font-bold">
+                  বন্ধ করুন
+                </button>
+              </div>
             </div>
           </div>
         </div>
