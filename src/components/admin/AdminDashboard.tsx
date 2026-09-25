@@ -30,6 +30,7 @@ import {
   AlertCircle,
   ArrowUp,
   ArrowDown,
+  RefreshCw,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -50,6 +51,7 @@ export const AdminDashboard: React.FC = () => {
     deleteCategory,
     reorderCategory,
     updateOrderStatus,
+    refreshOrders,
     updateSettings,
     showToast,
   } = useShop();
@@ -194,6 +196,8 @@ export const AdminDashboard: React.FC = () => {
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
+  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -434,11 +438,27 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const handleOrderStatusChange = async (orderId: string, status: OrderStatus) => {
-    const success = await updateOrderStatus(orderId, status);
-    if (success) {
-      setViewingOrder((current) =>
-        current?.id === orderId ? { ...current, status } : current
-      );
+    if (updatingOrderId) return;
+    setUpdatingOrderId(orderId);
+    try {
+      const success = await updateOrderStatus(orderId, status);
+      if (success) {
+        setViewingOrder((current) =>
+          current?.id === orderId ? { ...current, status } : current
+        );
+      }
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const handleRefreshOrders = async () => {
+    if (isRefreshingOrders) return;
+    setIsRefreshingOrders(true);
+    try {
+      await refreshOrders();
+    } finally {
+      setIsRefreshingOrders(false);
     }
   };
 
@@ -875,6 +895,10 @@ export const AdminDashboard: React.FC = () => {
               <option value="delivered">ডেলিভারড</option>
               <option value="cancelled">বাতিল</option>
             </select>
+            <button type="button" onClick={() => void handleRefreshOrders()} disabled={isRefreshingOrders} className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-stone-700 flex items-center justify-center gap-1.5">
+              <RefreshCw className={'w-3.5 h-3.5 ' + (isRefreshingOrders ? 'animate-spin' : '')} />
+              {isRefreshingOrders ? 'লোড হচ্ছে...' : 'রিফ্রেশ'}
+            </button>
           </div>
 
           {filteredOrders.length === 0 ? (
