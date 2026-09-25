@@ -959,6 +959,39 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================= */}
       {activeTab === 'products' && (
         <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-stone-900">পণ্য ব্যবস্থাপনা</h2>
+              <p className="text-xs text-stone-500 mt-0.5">এখান থেকে নতুন পণ্য যোগ, সম্পাদনা ও আর্কাইভ করতে পারবেন।</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingProduct({
+                  nameBn: '',
+                  nameEn: '',
+                  categoryId: categories[0]?.id || '',
+                  categoryIds: [],
+                  price: 0,
+                  regularPrice: 0,
+                  stock: 0,
+                  imageUrl: '',
+                  descriptionBn: '',
+                  specifications: [],
+                  isFeatured: false,
+                  isPopular: false,
+                  isActive: true,
+                  unit: '',
+                });
+                setIsProductModalOpen(true);
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              নতুন পণ্য যোগ করুন
+            </button>
+          </div>
+
           <div className="bg-white p-4 rounded-2xl border border-stone-200 space-y-3">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
