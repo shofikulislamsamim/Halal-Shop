@@ -669,10 +669,8 @@ export const AdminDashboard: React.FC = () => {
 
     if (editingProduct.id) {
       updateProduct(editingProduct.id, editingProduct);
-      showToast('পণ্য সফলভাবে আপডেট করা হয়েছে');
     } else {
       addProduct(editingProduct as any);
-      showToast('নতুন পণ্য যোগ করা হয়েছে');
     }
     setIsProductModalOpen(false);
     setEditingProduct(null);
@@ -688,20 +686,17 @@ export const AdminDashboard: React.FC = () => {
 
     if (editingCategory.id) {
       updateCategory(editingCategory.id, editingCategory);
-      showToast('ক্যাটাগরি আপডেট করা হয়েছে');
     } else {
       addCategory(editingCategory as any);
-      showToast('নতুন ক্যাটাগরি তৈরি হয়েছে');
     }
     setIsCategoryModalOpen(false);
     setEditingCategory(null);
   };
 
   // --- SAVE SETTINGS HANDLER ---
-  const handleSaveSettings = (e: React.FormEvent) => {
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings(settingsForm);
-    showToast('দোকানের সেটিংস সফলভাবে সংরক্ষিত হয়েছে');
+    await updateSettings(settingsForm);
   };
 
   return (
