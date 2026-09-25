@@ -86,6 +86,18 @@ export const AdminDashboard: React.FC = () => {
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
+  // Invoice logo: use the saved shop logo when available, otherwise render a
+  // self-contained SVG fallback so the invoice never loses its branding.
+  const invoiceLogoSrc = settings.logoUrl?.trim() || `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+      <rect width="160" height="160" rx="28" fill="#064e3b"/>
+      <circle cx="80" cy="72" r="42" fill="#ffffff"/>
+      <path d="M80 39c-8 13-25 22-25 39 0 16 11 27 25 27s25-11 25-27c0-17-17-26-25-39Z" fill="#059669"/>
+      <path d="M80 51v45M68 75c8 3 16 3 24 0" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+      <text x="80" y="143" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="800" fill="#ffffff">HALAL SHOP</text>
+    </svg>`
+  )}`;
+
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, '');
     if (!hash) return;
@@ -1909,7 +1921,13 @@ export const AdminDashboard: React.FC = () => {
                   printWindow.document.write('<!doctype html><html><head><title>Invoice - ' + invoiceOrder.id + '</title><style>\n*{box-sizing:border-box}body{margin:0;background:#f5f5f4;font-family:Arial,"Noto Sans Bengali",sans-serif;color:#292524}.sheet{width:210mm;min-height:297mm;margin:20px auto;background:#fff;padding:18mm 16mm;box-shadow:0 2px 18px rgba(0,0,0,.08)}.top{display:flex;justify-content:space-between;gap:30px;border-bottom:3px solid #047857;padding-bottom:18px}.brand{display:flex;gap:14px;align-items:center}.logo{width:62px;height:62px;object-fit:contain;border-radius:12px}.shop{font-size:22px;font-weight:800}.muted{color:#78716c;font-size:12px;line-height:1.6}.invoice-title{text-align:right}.invoice-title h1{margin:0;font-size:30px;letter-spacing:2px}.invoice-title div{font-size:12px;color:#78716c;margin-top:5px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:25px 0}.label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a8a29e;font-weight:700;margin-bottom:5px}.value{font-size:13px;font-weight:700}.address{font-size:12px;line-height:1.7;color:#57534e}.items{width:100%;border-collapse:collapse;margin-top:8px}.items th{background:#064e3b;color:#fff;text-align:left;padding:10px;font-size:11px}.items td{padding:10px;border-bottom:1px solid #e7e5e4;font-size:12px}.items th:last-child,.items td:last-child{text-align:right}.items th:nth-child(3),.items td:nth-child(3),.items th:nth-child(4),.items td:nth-child(4){text-align:right}.summary{margin-left:auto;width:280px;margin-top:20px}.row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}.total{margin-top:6px;padding:12px 0;border-top:2px solid #064e3b;font-size:18px;font-weight:800}.total strong{color:#047857}.footer{margin-top:45px;padding-top:15px;border-top:1px solid #e7e5e4;text-align:center;font-size:11px;color:#78716c}@media print{body{background:#fff}.sheet{margin:0;box-shadow:none;width:210mm;min-height:297mm}}\n</style></head><body>' + invoice.outerHTML + '</body></html>');
                   printWindow.document.close();
                   printWindow.focus();
-                  setTimeout(() => { printWindow.print(); printWindow.close(); }, 350);
+                  const printImages = Array.from(printWindow.document.images);
+                  Promise.all(printImages.map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => {
+                    image.addEventListener('load', () => resolve(), { once: true });
+                    image.addEventListener('error', () => resolve(), { once: true });
+                  }))).then(() => {
+                    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+                  });
                 }} className="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"><FileText className="w-4 h-4" /> Print / PDF</button>
                 <button type="button" onClick={() => setInvoiceOrder(null)} className="w-9 h-9 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold">✕</button>
               </div>
@@ -1918,7 +1936,7 @@ export const AdminDashboard: React.FC = () => {
               <div id="halal-shop-print-invoice" className="sheet bg-white max-w-[210mm] min-h-[297mm] mx-auto p-6 sm:p-10 shadow-xl text-stone-800">
                 <div className="top flex justify-between gap-6 border-b-[3px] border-emerald-700 pb-5">
                   <div className="brand flex items-center gap-4">
-                    {settings.logoUrl ? <img src={settings.logoUrl} alt={settings.shopName} className="logo w-16 h-16 object-contain rounded-xl" /> : <div className="w-16 h-16 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 font-black text-xl">{settings.shopName?.slice(0,1) || 'H'}</div>}
+                    <img src={invoiceLogoSrc} alt={settings.shopName} className="logo w-16 h-16 object-contain rounded-xl" onError={(event) => { event.currentTarget.src = invoiceLogoSrc; }} />
                     <div><div className="shop text-xl sm:text-2xl font-black">{settings.shopName}</div><div className="muted text-xs mt-1">{settings.tagline}</div><div className="muted text-xs mt-1">{settings.shopAddress}</div><div className="muted text-xs">{settings.contactNumber}</div></div>
                   </div>
                   <div className="invoice-title text-right shrink-0"><h1 className="text-3xl font-black tracking-widest text-stone-900">INVOICE</h1><div className="text-xs text-stone-500 mt-1">#{invoiceOrder.id}</div><div className="text-xs text-stone-500 mt-1">{new Date(invoiceOrder.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
