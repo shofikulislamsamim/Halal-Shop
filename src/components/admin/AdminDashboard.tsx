@@ -202,7 +202,6 @@ export const AdminDashboard: React.FC = () => {
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
-  const [orderPage, setOrderPage] = useState(1);
   const ORDERS_PER_PAGE = 20;
   const [debouncedOrderSearchQuery, setDebouncedOrderSearchQuery] = useState('');
   const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
@@ -409,7 +408,7 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (!isAdminLoggedIn) return;
 
-    setOrderPage(1);
+    setIsRefreshingOrders(true);
     void refreshOrders({
       status: orderStatusFilter,
       search: debouncedOrderSearchQuery,
@@ -417,7 +416,7 @@ export const AdminDashboard: React.FC = () => {
       sort: orderSort,
       limit: ORDERS_PER_PAGE,
       offset: 0,
-    });
+    }).finally(() => setIsRefreshingOrders(false));
   }, [isAdminLoggedIn, orderStatusFilter, debouncedOrderSearchQuery, orderDateFilter, orderSort]);
 
   const filteredProducts = products.filter((product) => {
@@ -509,7 +508,7 @@ export const AdminDashboard: React.FC = () => {
         limit: ORDERS_PER_PAGE,
         offset: orders.length,
       }, true);
-      if (loaded) setOrderPage((page) => page + 1);
+      void loaded;
     } finally {
       setIsLoadingMoreOrders(false);
     }
