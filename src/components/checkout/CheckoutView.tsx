@@ -54,7 +54,7 @@ export const CheckoutView: React.FC = () => {
   const [address, setAddress] = useState<StructuredAddress>({
     locationType: 'urban',
     division: 'ঢাকা বিভাগ',
-    district: 'ঢাকা (মেট্রো / সিটি)',
+    district: 'ঢাকা',
     upazilaThana: '',
     city: 'ঢাকা',
     area: '',
@@ -75,7 +75,6 @@ export const CheckoutView: React.FC = () => {
   const [submitError, setSubmitError] = useState('');
 
   const isDhaka =
-    address.district === 'ঢাকা (মেট্রো / সিটি)' ||
     address.district === 'ঢাকা';
 
   const isFreeDelivery = itemsSubtotal >= settings.freeDeliveryThreshold;
