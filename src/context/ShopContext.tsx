@@ -121,6 +121,7 @@ interface ShopContextType {
   getOrderStatusHistory: (orderId: string, phone?: string) => Promise<OrderStatusHistoryEntry[]>;
   refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
+  updateOrderAmount: (orderId: string, total: number) => Promise<number | null>;
 
   // Settings
   settings: WebsiteSettings;
@@ -796,6 +797,52 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Order status update failed:', error);
       const raw = error instanceof Error ? error.message : '';
       let message = 'অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।';
+      try {
+        const parsed = JSON.parse(raw);
+        const serverMessage = parsed?.message || parsed?.error_description || parsed?.details;
+        if (typeof serverMessage === 'string' && serverMessage.trim()) message = serverMessage.trim();
+      } catch {
+        if (raw && raw.length < 220 && !raw.includes('<')) message = raw;
+      }
+      showToast(message);
+      return null;
+    }
+  };
+
+  // Admin order amount update
+  const updateOrderAmount = async (orderId: string, total: number): Promise<number | null> => {
+    const current = orders.find((order) => order.id === orderId);
+    if (!current) return null;
+
+    const normalizedTotal = Math.round(Number(total) * 100) / 100;
+    if (!Number.isFinite(normalizedTotal) || normalizedTotal < 0) {
+      showToast('সঠিক অর্ডার অ্যামাউন্ট দিন।');
+      return null;
+    }
+
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_update_halal_order_amount', {
+        method: 'POST',
+        token,
+        body: { p_order_code: orderId, p_total: normalizedTotal },
+      });
+
+      const updatedTotal = Number(remote?.total);
+      if (!Number.isFinite(updatedTotal)) throw new Error('Server returned an invalid order amount.');
+
+      setOrders((prev) => prev.map((order) =>
+        order.id === orderId ? { ...order, total: updatedTotal } : order
+      ));
+
+      showToast('অর্ডার #' + orderId + ' এর মোট অ্যামাউন্ট ৳' + updatedTotal.toLocaleString('bn-BD') + ' করা হয়েছে');
+      return updatedTotal;
+    } catch (error) {
+      console.error('Order amount update failed:', error);
+      const raw = error instanceof Error ? error.message : '';
+      let message = 'অর্ডারের অ্যামাউন্ট সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।';
       try {
         const parsed = JSON.parse(raw);
         const serverMessage = parsed?.message || parsed?.error_description || parsed?.details;
