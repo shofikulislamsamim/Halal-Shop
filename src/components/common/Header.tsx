@@ -27,7 +27,6 @@ export const Header: React.FC = () => {
     activeCategories,
     rootCategories,
     getChildCategories,
-    isAdminAuthenticated,
   } = useShop();
 
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -102,26 +101,6 @@ export const Header: React.FC = () => {
               <span>{settings.contactNumber}</span>
             </a>
 
-            {isAdminAuthenticated ? (
-              <button
-                onClick={() => navigateTo('admin')}
-                className="bg-emerald-800 text-emerald-100 hover:text-white px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium border border-emerald-700 flex items-center gap-1"
-                id="header-admin-active-btn"
-              >
-                <Lock className="w-3 h-3 text-amber-300" />
-                <span>ড্যাশবোর্ড</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => navigateTo('admin')}
-                className="text-emerald-300 hover:text-white px-1.5 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors flex items-center gap-1"
-                id="header-admin-login-btn"
-                title="অ্যাডমিন প্যানেল"
-              >
-                <Lock className="w-3 h-3 text-emerald-400" />
-                <span>এডমিন</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
