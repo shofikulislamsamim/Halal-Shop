@@ -30,7 +30,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     <div className="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between overflow-hidden group h-full">
       {/* 1. Product Image Area (Consistent 1:1 Aspect Ratio) */}
       <div
+        role="button"
+        tabIndex={0}
         onClick={() => navigateTo('product-detail', { productId: product.id })}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            navigateTo('product-detail', { productId: product.id });
+          }
+        }}
         className="relative aspect-square w-full bg-stone-50/80 p-2.5 sm:p-3.5 flex items-center justify-center overflow-hidden cursor-pointer select-none"
       >
         <img
@@ -74,6 +82,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {/* Product Name */}
           <h3
             onClick={() => navigateTo('product-detail', { productId: product.id })}
+            role="link"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigateTo('product-detail', { productId: product.id });
+              }
+            }}
             className="font-semibold text-stone-900 text-xs sm:text-sm leading-snug line-clamp-2 hover:text-emerald-800 cursor-pointer transition-colors min-h-[34px] sm:min-h-[38px]"
             title={product.nameBn}
           >
