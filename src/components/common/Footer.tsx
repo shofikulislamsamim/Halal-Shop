@@ -7,7 +7,6 @@ import {
   Truck,
   ShieldCheck,
   CheckCircle2,
-  Lock,
 } from 'lucide-react';
 import { getWhatsAppUrl, getGeneralWhatsAppMessage } from '../../utils/helpers';
 
