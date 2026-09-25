@@ -791,18 +791,32 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        token,
-        headers: { Prefer: 'return=representation' },
-      });
-      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product delete affected no row.');
-      setProducts((prev) => prev.filter((product) => product.id !== id));
-      showToast('পণ্যটি মুছে ফেলা হয়েছে');
+
+      // Products are soft-deleted instead of physically removed so historical
+      // order items keep their product snapshot and cancellation can still
+      // restore stock safely when needed.
+      const remote = await supabaseFetch<any[]>(
+        `/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`,
+        {
+          method: 'PATCH',
+          token,
+          headers: { Prefer: 'return=representation' },
+          body: { is_active: false, updated_at: new Date().toISOString() },
+        }
+      );
+
+      if (!Array.isArray(remote) || remote.length !== 1) {
+        throw new Error('Product archive affected no row.');
+      }
+
+      setProducts((prev) => prev.map((product) =>
+        product.id === id ? { ...product, isActive: false } : product
+      ));
+      showToast('পণ্যটি আর্কাইভ করা হয়েছে। পুরোনো অর্ডার ইতিহাস অক্ষুণ্ণ থাকবে।');
       return true;
     } catch (error) {
-      console.error('Product delete failed:', error);
-      showToast('পণ্যটি মুছে ফেলা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      console.error('Product archive failed:', error);
+      showToast('পণ্যটি আর্কাইভ করা যায়নি। কোনো পরিবর্তন করা হয়নি।');
       return false;
     }
   };
