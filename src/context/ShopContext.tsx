@@ -1131,9 +1131,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shopAddress: nextSettings.shopAddress,
       };
 
-      await supabaseFetch('/rest/v1/halal_store_settings?id=eq.true', {
+      const remoteSettings = await supabaseFetch<any[]>('/rest/v1/halal_store_settings?id=eq.true', {
         method: 'PATCH',
         token,
+        headers: { Prefer: 'return=representation' },
         body: {
           store_name: nextSettings.shopName,
           logo_url: nextSettings.logoUrl || null,
@@ -1144,6 +1145,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updated_at: new Date().toISOString(),
         },
       });
+      if (!Array.isArray(remoteSettings) || remoteSettings.length !== 1) {
+        throw new Error('Settings update affected no row.');
+      }
 
       // Commit local state only after the database write succeeds. This avoids
       // showing a saved value locally when the remote update actually failed.
