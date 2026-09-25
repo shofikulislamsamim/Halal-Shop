@@ -84,6 +84,7 @@ export const AdminDashboard: React.FC = () => {
   const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+  const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, '');
@@ -1875,16 +1876,61 @@ export const AdminDashboard: React.FC = () => {
                       showToast('অর্ডার Confirmed হওয়ার পর ইনভয়েস পাওয়া যাবে');
                       return;
                     }
-                    window.print();
+                    setInvoiceOrder(viewingOrder);
                   }}
                   disabled={!['confirmed', 'processing', 'shipped', 'delivered'].includes(viewingOrder.status)}
                   className="bg-stone-100 hover:bg-stone-200 disabled:opacity-40 disabled:cursor-not-allowed text-stone-800 text-xs px-3 py-2 rounded-xl flex items-center gap-1.5"
                 >
-                  <FileText className="w-3.5 h-3.5" /> ইনভয়েস
+                  <FileText className="w-3.5 h-3.5" /> ইনভয়েস দেখুন
                 </button>
                 <button type="button" onClick={() => setViewingOrder(null)} className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded-xl font-bold">
                   বন্ধ করুন
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {invoiceOrder && (
+        <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+          <div className="bg-stone-100 rounded-3xl w-full max-w-4xl max-h-[95vh] overflow-hidden shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-stone-200 bg-white shrink-0">
+              <div>
+                <h3 className="font-black text-stone-900">Professional Invoice</h3>
+                <p className="text-[11px] text-stone-500">অর্ডারের সম্পূর্ণ ইনভয়েস</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => {
+                  const invoice = document.getElementById('halal-shop-print-invoice');
+                  if (!invoice) return;
+                  const printWindow = window.open('', '_blank', 'width=900,height=1000');
+                  if (!printWindow) { showToast('Print window খুলতে পারেনি। Browser popup allow করুন।'); return; }
+                  printWindow.document.write('<!doctype html><html><head><title>Invoice - ' + invoiceOrder.id + '</title><style>\n*{box-sizing:border-box}body{margin:0;background:#f5f5f4;font-family:Arial,"Noto Sans Bengali",sans-serif;color:#292524}.sheet{width:210mm;min-height:297mm;margin:20px auto;background:#fff;padding:18mm 16mm;box-shadow:0 2px 18px rgba(0,0,0,.08)}.top{display:flex;justify-content:space-between;gap:30px;border-bottom:3px solid #047857;padding-bottom:18px}.brand{display:flex;gap:14px;align-items:center}.logo{width:62px;height:62px;object-fit:contain;border-radius:12px}.shop{font-size:22px;font-weight:800}.muted{color:#78716c;font-size:12px;line-height:1.6}.invoice-title{text-align:right}.invoice-title h1{margin:0;font-size:30px;letter-spacing:2px}.invoice-title div{font-size:12px;color:#78716c;margin-top:5px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:25px 0}.label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#a8a29e;font-weight:700;margin-bottom:5px}.value{font-size:13px;font-weight:700}.address{font-size:12px;line-height:1.7;color:#57534e}.items{width:100%;border-collapse:collapse;margin-top:8px}.items th{background:#064e3b;color:#fff;text-align:left;padding:10px;font-size:11px}.items td{padding:10px;border-bottom:1px solid #e7e5e4;font-size:12px}.items th:last-child,.items td:last-child{text-align:right}.items th:nth-child(3),.items td:nth-child(3),.items th:nth-child(4),.items td:nth-child(4){text-align:right}.summary{margin-left:auto;width:280px;margin-top:20px}.row{display:flex;justify-content:space-between;padding:6px 0;font-size:12px}.total{margin-top:6px;padding:12px 0;border-top:2px solid #064e3b;font-size:18px;font-weight:800}.total strong{color:#047857}.footer{margin-top:45px;padding-top:15px;border-top:1px solid #e7e5e4;text-align:center;font-size:11px;color:#78716c}@media print{body{background:#fff}.sheet{margin:0;box-shadow:none;width:210mm;min-height:297mm}}\n</style></head><body>' + invoice.outerHTML + '</body></html>');
+                  printWindow.document.close();
+                  printWindow.focus();
+                  setTimeout(() => { printWindow.print(); printWindow.close(); }, 350);
+                }} className="bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"><FileText className="w-4 h-4" /> Print / PDF</button>
+                <button type="button" onClick={() => setInvoiceOrder(null)} className="w-9 h-9 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold">✕</button>
+              </div>
+            </div>
+            <div className="overflow-y-auto p-3 sm:p-6">
+              <div id="halal-shop-print-invoice" className="sheet bg-white max-w-[210mm] min-h-[297mm] mx-auto p-6 sm:p-10 shadow-xl text-stone-800">
+                <div className="top flex justify-between gap-6 border-b-[3px] border-emerald-700 pb-5">
+                  <div className="brand flex items-center gap-4">
+                    {settings.logoUrl ? <img src={settings.logoUrl} alt={settings.shopName} className="logo w-16 h-16 object-contain rounded-xl" /> : <div className="w-16 h-16 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-700 font-black text-xl">{settings.shopName?.slice(0,1) || 'H'}</div>}
+                    <div><div className="shop text-xl sm:text-2xl font-black">{settings.shopName}</div><div className="muted text-xs mt-1">{settings.tagline}</div><div className="muted text-xs mt-1">{settings.shopAddress}</div><div className="muted text-xs">{settings.contactNumber}</div></div>
+                  </div>
+                  <div className="invoice-title text-right shrink-0"><h1 className="text-3xl font-black tracking-widest text-stone-900">INVOICE</h1><div className="text-xs text-stone-500 mt-1">#{invoiceOrder.id}</div><div className="text-xs text-stone-500 mt-1">{new Date(invoiceOrder.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div></div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 my-7">
+                  <div><div className="label text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Bill To</div><div className="value font-bold">{invoiceOrder.customerName}</div><div className="muted text-xs mt-1">{invoiceOrder.mobile}{invoiceOrder.altMobile ? ' / '+invoiceOrder.altMobile : ''}</div><div className="address text-xs text-stone-600 mt-2">{invoiceOrder.address.formattedFullAddress || invoiceOrder.address.detailedAddress}</div></div>
+                  <div className="sm:text-right"><div className="label text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Payment</div><div className="value font-bold">Cash on Delivery</div><div className="muted text-xs mt-1">Order Status: {orderStatusLabels[invoiceOrder.status]}</div><div className="muted text-xs mt-1">Order Date: {new Date(invoiceOrder.createdAt).toLocaleString('en-GB')}</div></div>
+                </div>
+                <table className="items w-full border-collapse text-xs"><thead><tr className="bg-emerald-800 text-white"><th className="text-left p-3">Item</th><th className="text-center p-3">Qty</th><th className="text-right p-3">Unit Price</th><th className="text-right p-3">Amount</th></tr></thead><tbody>{invoiceOrder.items.map((item,index)=><tr key={item.productId+'-'+index} className="border-b border-stone-200"><td className="p-3 font-semibold">{item.nameBn}</td><td className="p-3 text-center">{item.quantity}</td><td className="p-3 text-right">{formatPrice(item.price)}</td><td className="p-3 text-right font-bold">{formatPrice(item.total)}</td></tr>)}</tbody></table>
+                <div className="summary ml-auto w-full sm:w-72 mt-6"><div className="row flex justify-between py-1.5 text-xs"><span>Subtotal</span><strong>{formatPrice(invoiceOrder.subtotal)}</strong></div><div className="row flex justify-between py-1.5 text-xs"><span>Delivery Charge</span><strong>{formatPrice(invoiceOrder.deliveryCharge)}</strong></div><div className="total flex justify-between border-t-2 border-emerald-800 mt-2 pt-3 text-lg font-black"><span>Total Due</span><strong className="text-emerald-700">{formatPrice(invoiceOrder.total)}</strong></div></div>
+                {invoiceOrder.orderNote && <div className="mt-7 p-4 rounded-xl bg-stone-50 border border-stone-200"><div className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">Order Note</div><div className="text-xs text-stone-700">{invoiceOrder.orderNote}</div></div>}
+                <div className="footer mt-12 pt-4 border-t border-stone-200 text-center text-xs text-stone-500"><div className="font-bold text-stone-700">Thank you for shopping with {settings.shopName}.</div><div className="mt-1">{settings.footerNotice || 'We appreciate your business.'}</div></div>
               </div>
             </div>
           </div>
