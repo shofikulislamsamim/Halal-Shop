@@ -55,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
     reorderCategory,
     updateOrderStatus,
     updateOrderAmount,
+    updateOrderDelivery,
     refreshOrders,
     getOrderStatusHistory,
     updateSettings,
@@ -210,6 +211,9 @@ export const AdminDashboard: React.FC = () => {
   const [editingOrderAmountId, setEditingOrderAmountId] = useState<string | null>(null);
   const [editingOrderAmount, setEditingOrderAmount] = useState('');
   const [isSavingOrderAmount, setIsSavingOrderAmount] = useState(false);
+  const [editingDeliveryOrderId, setEditingDeliveryOrderId] = useState<string | null>(null);
+  const [editingDeliveryCharge, setEditingDeliveryCharge] = useState('');
+  const [isSavingDelivery, setIsSavingDelivery] = useState(false);
   const ORDERS_PER_PAGE = 20;
   const [debouncedOrderSearchQuery, setDebouncedOrderSearchQuery] = useState('');
   const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
@@ -483,6 +487,38 @@ export const AdminDashboard: React.FC = () => {
       }
     } finally {
       setUpdatingOrderId(null);
+    }
+  };
+
+  const handleDeliveryEditStart = (order: Order) => {
+    if (order.status === 'cancelled') {
+      showToast('বাতিল অর্ডারের ডেলিভারি চার্জ পরিবর্তন করা যাবে না।');
+      return;
+    }
+    setEditingDeliveryOrderId(order.id);
+    setEditingDeliveryCharge(String(order.deliveryCharge || 0));
+  };
+
+  const handleDeliverySave = async () => {
+    if (!viewingOrder || isSavingDelivery) return;
+    const delivery = Number(editingDeliveryCharge);
+    if (!Number.isFinite(delivery) || delivery < 0) {
+      showToast('সঠিক ডেলিভারি চার্জ দিন।');
+      return;
+    }
+    setIsSavingDelivery(true);
+    try {
+      const result = await updateOrderDelivery(viewingOrder.id, delivery);
+      if (result) {
+        setViewingOrder((current) => current?.id === viewingOrder.id
+          ? { ...current, deliveryCharge: result.delivery, total: result.total }
+          : current
+        );
+        setEditingDeliveryOrderId(null);
+        setEditingDeliveryCharge('');
+      }
+    } finally {
+      setIsSavingDelivery(false);
     }
   };
 
@@ -1680,7 +1716,38 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-2 text-xs">
                 <div className="flex justify-between"><span className="text-stone-500">পণ্যের মোট</span><strong>{formatPrice(viewingOrder.subtotal)}</strong></div>
-                <div className="flex justify-between"><span className="text-stone-500">ডেলিভারি চার্জ</span><strong>{formatPrice(viewingOrder.deliveryCharge)}</strong></div>
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-stone-500">ডেলিভারি চার্জ</span>
+                  {editingDeliveryOrderId === viewingOrder.id ? (
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-stone-400 text-xs">৳</span>
+                        <input
+                          type="number" min="0" step="0.01" autoFocus
+                          value={editingDeliveryCharge}
+                          onChange={(e) => setEditingDeliveryCharge(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') void handleDeliverySave();
+                            if (e.key === 'Escape') { setEditingDeliveryOrderId(null); setEditingDeliveryCharge(''); }
+                          }}
+                          disabled={isSavingDelivery}
+                          className="w-28 pl-6 pr-2 py-1.5 rounded-lg border border-emerald-300 bg-white text-right font-bold text-emerald-800 outline-none focus:ring-2 focus:ring-emerald-100 disabled:opacity-60"
+                        />
+                      </div>
+                      <button type="button" onClick={() => void handleDeliverySave()} disabled={isSavingDelivery} className="px-2.5 py-1.5 rounded-lg bg-emerald-700 text-white text-[11px] font-bold disabled:opacity-50">{isSavingDelivery ? 'সংরক্ষণ...' : 'সংরক্ষণ'}</button>
+                      <button type="button" onClick={() => { setEditingDeliveryOrderId(null); setEditingDeliveryCharge(''); }} disabled={isSavingDelivery} className="px-2.5 py-1.5 rounded-lg bg-white border border-stone-300 text-stone-600 text-[11px] font-bold disabled:opacity-50">বাতিল</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <strong>{formatPrice(viewingOrder.deliveryCharge)}</strong>
+                      {viewingOrder.status !== 'cancelled' && (
+                        <button type="button" onClick={() => handleDeliveryEditStart(viewingOrder)} className="p-1.5 rounded-lg text-stone-500 hover:text-emerald-700 hover:bg-emerald-50 border border-transparent hover:border-emerald-100" title="ডেলিভারি চার্জ এডিট করুন" aria-label="ডেলিভারি চার্জ এডিট করুন">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm gap-3">
                   <span className="font-bold">সর্বমোট</span>
                   {editingOrderAmountId === viewingOrder.id ? (
