@@ -92,7 +92,7 @@ interface ShopContextType {
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
   refreshOrders: () => Promise<boolean>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
 
   // Settings
   settings: WebsiteSettings;
@@ -645,7 +645,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       if (!Array.isArray(remoteOrders)) throw new Error('Orders reload failed.');
       setOrders(remoteOrders.map(mapRemoteOrder));
-      return true;
+      return updatedStatus;
     } catch (error) {
       console.error('Supabase orders refresh failed:', error);
       showToast('অর্ডারের সর্বশেষ তথ্য আনা যায়নি। আবার চেষ্টা করুন।');
@@ -656,9 +656,9 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const orderStatusLabelForToast = (status: OrderStatus): string => ({ pending: 'পেন্ডিং', confirmed: 'কনফার্মড', processing: 'প্রসেসিং', shipped: 'শিপড', delivered: 'ডেলিভারড', cancelled: 'বাতিল' })[status];
 
   // Admin order status update
-  const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<OrderStatus | null> => {
     const current = orders.find((order) => order.id === orderId);
-    if (!current || current.status === status) return false;
+    if (!current || current.status === status) return null;
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
@@ -700,7 +700,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (raw && raw.length < 220 && !raw.includes('<')) message = raw;
       }
       showToast(message);
-      return false;
+      return null;
     }
   };
 
