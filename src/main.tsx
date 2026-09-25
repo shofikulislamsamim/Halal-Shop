@@ -22,7 +22,3 @@ try {
   showStartupError?.(error instanceof Error ? error.stack || error.message : error);
   throw error;
 }
-
-if (startupFallback) {
-  startupFallback.remove();
-}
