@@ -796,216 +796,128 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addCategory = async (categoryData: Omit<Category, 'id'>) => {
     const parentId = categoryData.parentId ? categoryData.parentId : null;
-
-    // Check duplicate name under same parent
     const duplicate = categories.some(
-      (c) =>
-        (c.parentId || null) === parentId &&
-        c.nameBn.trim().toLowerCase() === categoryData.nameBn.trim().toLowerCase()
+      (cat) => (cat.parentId || null) === parentId && cat.nameBn.trim().toLowerCase() === categoryData.nameBn.trim().toLowerCase()
     );
     if (duplicate) {
       showToast('একই প্যারেন্টের অধীনে এই নামের ক্যাটাগরি ইতিমধ্যে রয়েছে');
       return { success: false, message: 'একই প্যারেন্টের অধীনে এই নামের ক্যাটাগরি ইতিমধ্যে রয়েছে' };
     }
-
-    // Auto-generate or sanitize slug
-    const cleanSlug = generateCategorySlug(
-      categoryData.slug?.trim() || categoryData.nameEn || categoryData.nameBn,
-      categories
-    );
-
-    // Calculate sort order if not given
-    const siblings = categories.filter((c) => (c.parentId || null) === parentId);
-    const maxOrder = siblings.reduce((max, c) => Math.max(max, c.order ?? 0), 0);
-    const sortOrder = categoryData.order ?? (maxOrder + 1);
-
+    const cleanSlug = generateCategorySlug(categoryData.slug?.trim() || categoryData.nameEn || categoryData.nameBn, categories);
+    const siblings = categories.filter((cat) => (cat.parentId || null) === parentId);
+    const maxOrder = siblings.reduce((max, cat) => Math.max(max, cat.order ?? 0), 0);
     const now = new Date().toISOString();
     const newCategory: Category = {
       ...categoryData,
-      id: typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `cat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       parentId,
       slug: cleanSlug,
-      order: sortOrder,
+      order: categoryData.order ?? maxOrder + 1,
       isActive: categoryData.isActive !== false,
       createdAt: now,
       updatedAt: now,
     };
-
-    setCategories((prev) => [...prev, newCategory]);
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch('/rest/v1/halal_categories', {
-          method: 'POST',
-          token,
-          body: {
-            id: newCategory.id,
-            parent_id: newCategory.parentId,
-            name_bn: newCategory.nameBn,
-            name_en: newCategory.nameEn || null,
-            slug: newCategory.slug,
-            icon: newCategory.icon || null,
-            sort_order: newCategory.order ?? 0,
-            is_active: newCategory.isActive,
-            created_at: newCategory.createdAt,
-            updated_at: newCategory.updatedAt,
-          },
-        });
-      } catch (error) {
-        console.error('Category create failed:', error);
-        setCategories((prev) => prev.filter((category) => category.id !== newCategory.id));
-        showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
-      }
-    })();
-    showToast(`"${newCategory.nameBn}" ক্যাটাগরি সফলভাবে তৈরি করা হয়েছে`);
-    return { success: true, category: newCategory };
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>('/rest/v1/halal_categories', {
+        method: 'POST', token, headers: { Prefer: 'return=representation' },
+        body: {
+          id: newCategory.id, parent_id: newCategory.parentId, name_bn: newCategory.nameBn,
+          name_en: newCategory.nameEn || null, slug: newCategory.slug, icon: newCategory.icon || null,
+          sort_order: newCategory.order ?? 0, is_active: newCategory.isActive,
+          created_at: newCategory.createdAt, updated_at: newCategory.updatedAt,
+        },
+      });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Category create affected no row.');
+      setCategories((prev) => [...prev, newCategory]);
+      showToast(`"${newCategory.nameBn}" ক্যাটাগরি সফলভাবে তৈরি করা হয়েছে`);
+      return { success: true, category: newCategory };
+    } catch (error) {
+      console.error('Category create failed:', error);
+      showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। পরিবর্তনটি যোগ করা হয়নি।');
+      return { success: false, message: 'ক্যাটাগরি সংরক্ষণ করা যায়নি' };
+    }
   };
 
   const updateCategory = async (id: string, updated: Partial<Category>) => {
-    // 1. Circular parent validation
     if (updated.parentId !== undefined) {
       const targetParentId = updated.parentId ? updated.parentId : null;
-      if (targetParentId) {
-        if (targetParentId === id || isDescendantOrSelf(targetParentId, id, categories)) {
-          showToast('ভুল প্যারেন্ট: কোনো ক্যাটাগরিকে নিজের বা নিজের সাব-ক্যাটাগরির অধীনে নেওয়া যাবে না');
-          return { success: false, message: 'সার্কুলার রিলেশনশিপ অনুমোদিত নয়' };
-        }
+      if (targetParentId && (targetParentId === id || isDescendantOrSelf(targetParentId, id, categories))) {
+        showToast('ভুল প্যারেন্ট: কোনো ক্যাটাগরিকে নিজের বা নিজের সাব-ক্যাটাগরির অধীনে নেওয়া যাবে না');
+        return { success: false, message: 'সার্কুলার রিলেশনশিপ অনুমোদিত নয়' };
       }
     }
-
-    // 2. Parent must exist.
-    if (updated.parentId) {
-      const parentExists = categories.some((c) => c.id === updated.parentId);
-      if (!parentExists) {
-        showToast('নির্বাচিত প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি');
-        return { success: false, message: 'প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি' };
-      }
+    if (updated.parentId && !categories.some((cat) => cat.id === updated.parentId)) {
+      showToast('নির্বাচিত প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি');
+      return { success: false, message: 'প্যারেন্ট ক্যাটাগরি পাওয়া যায়নি' };
     }
-
-    // 3. Prevent duplicate names under the same parent.
-    if (updated.nameBn !== undefined || updated.parentId !== undefined) {
-      const current = categories.find((c) => c.id === id);
-      const targetName = (updated.nameBn ?? current?.nameBn ?? '').trim().toLowerCase();
-      const targetParentId = updated.parentId !== undefined
-        ? (updated.parentId || null)
-        : (current?.parentId || null);
-
-      const duplicate = categories.some(
-        (c) =>
-          c.id !== id &&
-          (c.parentId || null) === targetParentId &&
-          c.nameBn.trim().toLowerCase() === targetName
-      );
-
-      if (duplicate) {
-        showToast('একই প্যারেন্টের অধীনে এই নামে আরেকটি ক্যাটাগরি আছে');
-        return { success: false, message: 'একই প্যারেন্টের অধীনে নামটি ইতিমধ্যে ব্যবহৃত হয়েছে' };
-      }
+    const currentCategory = categories.find((cat) => cat.id === id);
+    if (!currentCategory) return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
+    const targetName = (updated.nameBn ?? currentCategory.nameBn).trim().toLowerCase();
+    const targetParentId = updated.parentId !== undefined ? (updated.parentId || null) : (currentCategory.parentId || null);
+    if (categories.some((cat) => cat.id !== id && (cat.parentId || null) === targetParentId && cat.nameBn.trim().toLowerCase() === targetName)) {
+      showToast('একই প্যারেন্টের অধীনে এই নামে আরেকটি ক্যাটাগরি আছে');
+      return { success: false, message: 'একই প্যারেন্টের অধীনে নামটি ইতিমধ্যে ব্যবহৃত হয়েছে' };
     }
-
-    // 4. Slug uniqueness check
     if (updated.slug) {
-      const slugDuplicate = categories.some(
-        (c) => c.id !== id && c.slug.toLowerCase() === updated.slug?.trim().toLowerCase()
-      );
-      if (slugDuplicate) {
+      const slug = updated.slug.trim().toLowerCase();
+      if (categories.some((cat) => cat.id !== id && cat.slug.toLowerCase() === slug)) {
         showToast('এই স্লাগটি ইতিমধ্যে অন্য ক্যাটাগরিতে ব্যবহৃত হয়েছে');
         return { success: false, message: 'স্লাগটি ইতিমধ্যে বিদ্যমান' };
       }
     }
-
-    const currentCategory = categories.find((c) => c.id === id);
-    if (!currentCategory) {
-      return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
-    }
-
     const nextCategory: Category = {
-      ...currentCategory,
-      ...updated,
+      ...currentCategory, ...updated,
       parentId: updated.parentId !== undefined ? (updated.parentId || null) : currentCategory.parentId,
+      slug: String(updated.slug ?? currentCategory.slug).trim(),
       updatedAt: new Date().toISOString(),
     };
-
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
       const remote = await supabaseFetch<any[]>(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        token,
-        headers: { Prefer: 'return=representation' },
-        body: { is_active: newStatus, updated_at: updatedAt },
+        method: 'PATCH', token, headers: { Prefer: 'return=representation' },
+        body: {
+          parent_id: nextCategory.parentId, name_bn: nextCategory.nameBn, name_en: nextCategory.nameEn || null,
+          slug: nextCategory.slug, icon: nextCategory.icon || null, sort_order: nextCategory.order ?? 0,
+          is_active: nextCategory.isActive, updated_at: nextCategory.updatedAt,
+        },
       });
-      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Category status update affected no row.');
-      setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
-      showToast(`"${currentCategory.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
-      return true;
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Category update affected no row.');
+      setCategories((prev) => prev.map((cat) => cat.id === id ? nextCategory : cat));
+      showToast('ক্যাটাগরি তথ্য সফলভাবে আপডেট করা হয়েছে');
+      return { success: true };
     } catch (error) {
-      console.error('Category status update failed:', error);
-      showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি।');
-      return false;
+      console.error('Category update failed:', error);
+      showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return { success: false, message: 'ক্যাটাগরি সংরক্ষণ করা যায়নি' };
     }
-
-    /* void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        const queryId = encodeURIComponent(id);
-        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${queryId}`, {
-          method: 'PATCH',
-          token,
-          body: {
-            parent_id: nextCategory.parentId,
-            name_bn: nextCategory.nameBn,
-            name_en: nextCategory.nameEn || null,
-            slug: nextCategory.slug,
-            icon: nextCategory.icon || null,
-            sort_order: nextCategory.order ?? 0,
-            is_active: nextCategory.isActive,
-            updated_at: nextCategory.updatedAt,
-          },
-        });
-      } catch (error) {
-        console.error('Category update failed:', error);
-        setCategories((prev) => prev.map((c) => (c.id === id ? currentCategory : c)));
-        showToast('ক্যাটাগরি সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
-      }
-    })();
-
-    showToast('ক্যাটাগরি তথ্য সফলভাবে আপডেট করা হয়েছে');
-    return { success: true };
   };
 
   const deleteCategory = async (id: string) => {
-    const target = categories.find((c) => c.id === id);
+    const target = categories.find((cat) => cat.id === id);
     if (!target) return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
-
     const check = canDeleteCategory(id, categories, products, orders);
     if (!check.canDelete) {
       showToast(check.reason || 'এই ক্যাটাগরি মুছে ফেলা সম্ভব নয়');
       return { success: false, message: check.reason };
     }
-
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        const queryId = encodeURIComponent(id);
-        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${queryId}`, {
-          method: 'DELETE',
-          token,
-        });
-      } catch (error) {
-        console.error('Category delete failed:', error);
-        setCategories((prev) => [...prev, target]);
-        showToast('ক্যাটাগরি মুছে ফেলা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
-      }
-    })();
-    showToast(`"${target.nameBn}" ক্যাটাগরি মুছে ফেলা হয়েছে`);
-    return { success: true };
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE', token, headers: { Prefer: 'return=representation' },
+      });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Category delete affected no row.');
+      setCategories((prev) => prev.filter((cat) => cat.id !== id));
+      showToast(`"${target.nameBn}" ক্যাটাগরি মুছে ফেলা হয়েছে`);
+      return { success: true };
+    } catch (error) {
+      console.error('Category delete failed:', error);
+      showToast('ক্যাটাগরি মুছে ফেলা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return { success: false, message: 'ক্যাটাগরি মুছে ফেলা যায়নি' };
+    }
   };
 
   const moveCategory = async (id: string, newParentId: string | null) => {
