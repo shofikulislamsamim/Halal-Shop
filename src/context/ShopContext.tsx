@@ -94,7 +94,7 @@ interface ShopContextType {
 
   // Settings
   settings: WebsiteSettings;
-  updateSettings: (newSettings: Partial<WebsiteSettings>) => void;
+  updateSettings: (newSettings: Partial<WebsiteSettings>) => Promise<boolean>;
 
   // Admin Auth
   isAdminAuthenticated: boolean;
@@ -1088,55 +1088,68 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Settings update
-  const updateSettings = (newSettings: Partial<WebsiteSettings>) => {
-    const previousSettings = settings;
-    const nextSettings = { ...previousSettings, ...newSettings };
-    setSettings(nextSettings);
+  const updateSettings = async (newSettings: Partial<WebsiteSettings>): Promise<boolean> => {
+    const nextSettings: WebsiteSettings = {
+      ...settings,
+      ...newSettings,
+      shopName: String(newSettings.shopName ?? settings.shopName ?? '').trim(),
+      contactNumber: String(newSettings.contactNumber ?? settings.contactNumber ?? '').trim(),
+      whatsappNumber: String(newSettings.whatsappNumber ?? settings.whatsappNumber ?? '').trim(),
+      shopAddress: String(newSettings.shopAddress ?? settings.shopAddress ?? '').trim(),
+      deliveryChargeDhaka: Math.max(0, Number(newSettings.deliveryChargeDhaka ?? settings.deliveryChargeDhaka ?? 0) || 0),
+      deliveryChargeOutsideDhaka: Math.max(0, Number(newSettings.deliveryChargeOutsideDhaka ?? settings.deliveryChargeOutsideDhaka ?? 0) || 0),
+      freeDeliveryThreshold: Math.max(0, Number(newSettings.freeDeliveryThreshold ?? settings.freeDeliveryThreshold ?? 0) || 0),
+    };
 
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) {
-          throw new Error('Admin session is not available.');
-        }
+    if (!nextSettings.shopName) {
+      showToast('দোকানের নাম খালি রাখা যাবে না।');
+      return false;
+    }
 
-        const deliverySettings = {
-          deliveryChargeDhaka: nextSettings.deliveryChargeDhaka,
-          deliveryChargeOutsideDhaka: nextSettings.deliveryChargeOutsideDhaka,
-          freeDeliveryThreshold: nextSettings.freeDeliveryThreshold,
-          heroTitle: nextSettings.heroTitle,
-          heroSubtitle: nextSettings.heroSubtitle,
-          announcementText: nextSettings.announcementText || '',
-          isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
-          tagline: nextSettings.tagline,
-          facebookPage: nextSettings.facebookPage,
-          shopAddress: nextSettings.shopAddress,
-        };
-
-        await supabaseFetch('/rest/v1/halal_store_settings?id=eq.true', {
-          method: 'PATCH',
-          token,
-          body: {
-            store_name: nextSettings.shopName,
-            logo_url: nextSettings.logoUrl || null,
-            phone: nextSettings.contactNumber || null,
-            whatsapp: nextSettings.whatsappNumber || null,
-            about: nextSettings.footerNotice || null,
-            delivery_settings: deliverySettings,
-            updated_at: new Date().toISOString(),
-          },
-        });
-      } catch (error) {
-        console.error('Settings update failed:', error);
-        setSettings(previousSettings);
-        showToast('সেটিংস সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
-        return;
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) {
+        throw new Error('Admin session is not available.');
       }
-    })();
 
-    showToast('ওয়েবসাইটের সেটিংস আপডেট করা হয়েছে');
+      const deliverySettings = {
+        deliveryChargeDhaka: nextSettings.deliveryChargeDhaka,
+        deliveryChargeOutsideDhaka: nextSettings.deliveryChargeOutsideDhaka,
+        freeDeliveryThreshold: nextSettings.freeDeliveryThreshold,
+        heroTitle: nextSettings.heroTitle,
+        heroSubtitle: nextSettings.heroSubtitle,
+        announcementText: nextSettings.announcementText || '',
+        isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
+        tagline: nextSettings.tagline,
+        facebookPage: nextSettings.facebookPage,
+        shopAddress: nextSettings.shopAddress,
+      };
+
+      await supabaseFetch('/rest/v1/halal_store_settings?id=eq.true', {
+        method: 'PATCH',
+        token,
+        body: {
+          store_name: nextSettings.shopName,
+          logo_url: nextSettings.logoUrl || null,
+          phone: nextSettings.contactNumber || null,
+          whatsapp: nextSettings.whatsappNumber || null,
+          about: nextSettings.footerNotice || null,
+          delivery_settings: deliverySettings,
+          updated_at: new Date().toISOString(),
+        },
+      });
+
+      // Commit local state only after the database write succeeds. This avoids
+      // showing a saved value locally when the remote update actually failed.
+      setSettings(nextSettings);
+      showToast('ওয়েবসাইটের সেটিংস সফলভাবে সংরক্ষণ করা হয়েছে।');
+      return true;
+    } catch (error) {
+      console.error('Settings update failed:', error);
+      showToast('সেটিংস সংরক্ষণ করা যায়নি। পরিবর্তনগুলো রাখা হয়নি।');
+      return false;
+    }
   };
-
   // Supabase Admin Authentication
   const verifyAdminLogin = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     if (!isSupabaseConfigured) return { success: false, message: 'Supabase সংযোগ কনফিগার করা নেই।' };
