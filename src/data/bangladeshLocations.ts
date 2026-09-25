@@ -323,88 +323,108 @@ export interface CompleteBdLocationData {
 }
 
 export async function loadCompleteBangladeshLocations(): Promise<CompleteBdLocationData> {
-  const response = await fetch(COMPLETE_BD_LOCATION_URL, {
-    method: 'GET',
-    mode: 'cors',
-    cache: 'force-cache',
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 7000);
 
-  if (!response.ok) {
-    throw new Error(`Location data request failed: ${response.status}`);
-  }
+  try {
+    const response = await fetch(COMPLETE_BD_LOCATION_URL, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'force-cache',
+      signal: controller.signal,
+    });
 
-  const source = await response.json();
+    if (!response.ok) {
+      throw new Error(`Location data request failed: ${response.status}`);
+    }
 
-  const divisions: BdDivision[] = [];
-  const districts: BdDistrict[] = [];
-  const upazilas: BdUpazilaThana[] = [];
+    const source: unknown = await response.json();
+    if (!Array.isArray(source)) {
+      throw new Error('Invalid Bangladesh location data format');
+    }
 
-  const slug = (value: string) =>
-    value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const divisions: BdDivision[] = [];
+    const districts: BdDistrict[] = [];
+    const upazilas: BdUpazilaThana[] = [];
 
-  for (const [divisionIndex, division] of source.entries()) {
-    const divisionId = slug(division.name || `division-${divisionIndex + 1}`);
-    const divisionRecord: BdDivision = {
-      id: divisionId,
-      nameBn: division.bn_name || division.name,
-      nameEn: division.name || division.bn_name,
-    };
-    divisions.push(divisionRecord);
+    const slug = (value: string) =>
+      value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-    for (const [districtIndex, district] of (division.districts || []).entries()) {
-      const districtId = `${divisionId}-${slug(district.name || district.bn_name || String(districtIndex))}`;
-      const districtRecord: BdDistrict = {
-        id: districtId,
-        divisionId,
-        nameBn: district.bn_name || district.name,
-        nameEn: district.name || district.bn_name,
-        isDhakaCity: district.bn_name === 'ঢাকা' || district.name === 'Dhaka',
+    source.forEach((division: any, divisionIndex: number) => {
+      const divisionId = slug(String(division?.name || `division-${divisionIndex + 1}`));
+      const divisionRecord: BdDivision = {
+        id: divisionId,
+        nameBn: String(division?.bn_name || division?.name || ''),
+        nameEn: String(division?.name || division?.bn_name || ''),
       };
-      districts.push(districtRecord);
+      if (!divisionRecord.nameBn) return;
+      divisions.push(divisionRecord);
 
-      for (const [upazilaIndex, upazila] of (district.upazilas || []).entries()) {
-        const upazilaId = `${districtId}-${slug(upazila.name || upazila.bn_name || String(upazilaIndex))}`;
-        const unionNames = (upazila.unions || [])
-          .map((item: { bn_name?: string; name?: string }) => item.bn_name || item.name)
-          .filter(Boolean);
-        const pourashavaNames = (upazila.pourashavas || [])
-          .map((item: { bn_name?: string; name?: string }) => item.bn_name || item.name)
-          .filter(Boolean);
+      (Array.isArray(division?.districts) ? division.districts : []).forEach((district: any, districtIndex: number) => {
+        const districtName = String(district?.name || district?.bn_name || '');
+        if (!districtName) return;
 
-        upazilas.push({
-          id: upazilaId,
-          districtId,
-          nameBn: upazila.bn_name || upazila.name,
-          nameEn: upazila.name || upazila.bn_name,
-          isUrban: pourashavaNames.length > 0,
-          unions: unionNames,
-          areas: [...new Set([...unionNames, ...pourashavaNames])],
+        const districtId = `${divisionId}-${slug(districtName || String(districtIndex))}`;
+        const districtRecord: BdDistrict = {
+          id: districtId,
+          divisionId,
+          nameBn: String(district?.bn_name || district?.name || ''),
+          nameEn: districtName,
+          isDhakaCity: district?.bn_name === 'ঢাকা' || district?.name === 'Dhaka',
+        };
+        districts.push(districtRecord);
+
+        (Array.isArray(district?.upazilas) ? district.upazilas : []).forEach((upazila: any, upazilaIndex: number) => {
+          const upazilaName = String(upazila?.name || upazila?.bn_name || '');
+          if (!upazilaName) return;
+
+          const upazilaId = `${districtId}-${slug(upazilaName || String(upazilaIndex))}`;
+          const unionNames = (Array.isArray(upazila?.unions) ? upazila.unions : [])
+            .map((item: any) => String(item?.bn_name || item?.name || ''))
+            .filter(Boolean);
+          const pourashavaNames = (Array.isArray(upazila?.pourashavas) ? upazila.pourashavas : [])
+            .map((item: any) => String(item?.bn_name || item?.name || ''))
+            .filter(Boolean);
+
+          upazilas.push({
+            id: upazilaId,
+            districtId,
+            nameBn: String(upazila?.bn_name || upazila?.name || ''),
+            nameEn: upazilaName,
+            isUrban: pourashavaNames.length > 0,
+            unions: unionNames,
+            areas: [...new Set([...unionNames, ...pourashavaNames])],
+          });
         });
+      });
+    });
+
+    const dhakaDistrict = districts.find((d) => d.isDhakaCity);
+    if (dhakaDistrict) {
+      const localDhakaThanas = BD_UPAZILAS_THANAS.filter(
+        (item) => item.districtId === 'dhaka_city'
+      );
+
+      for (const thana of localDhakaThanas) {
+        if (!upazilas.some((item) => item.nameBn === thana.nameBn && item.districtId === dhakaDistrict.id)) {
+          upazilas.push({
+            ...thana,
+            id: `${dhakaDistrict.id}-metro-${thana.id}`,
+            districtId: dhakaDistrict.id,
+            unions: thana.areas || [],
+            areas: thana.areas || [],
+            isUrban: true,
+          });
+        }
       }
     }
-  }
 
-  // The national hierarchy lists Dhaka as one district, while the checkout
-  // also needs Dhaka metropolitan thanas for practical delivery addresses.
-  const dhakaDistrict = districts.find((d) => d.isDhakaCity);
-  if (dhakaDistrict) {
-    const localDhakaThanas = BD_UPAZILAS_THANAS.filter(
-      (item) => item.districtId === 'dhaka_city'
-    );
-
-    for (const thana of localDhakaThanas) {
-      if (!upazilas.some((item) => item.nameBn === thana.nameBn && item.districtId === dhakaDistrict.id)) {
-        upazilas.push({
-          ...thana,
-          id: `${dhakaDistrict.id}-metro-${thana.id}`,
-          districtId: dhakaDistrict.id,
-          unions: thana.areas || [],
-          areas: thana.areas || [],
-          isUrban: true,
-        });
-      }
+    if (divisions.length === 0 || districts.length === 0 || upazilas.length === 0) {
+      throw new Error('Incomplete Bangladesh location data');
     }
-  }
 
-  return { divisions, districts, upazilas };
+    return { divisions, districts, upazilas };
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
