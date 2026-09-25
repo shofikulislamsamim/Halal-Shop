@@ -31,6 +31,26 @@ import {
   clearSupabaseSession,
 } from '../lib/supabase';
 
+export interface OrderListFilters {
+  status?: string;
+  search?: string;
+  date?: 'all' | 'today' | 'yesterday' | '7days' | '30days';
+  sort?: 'newest' | 'oldest' | 'pending';
+  limit?: number;
+  offset?: number;
+}
+
+export interface OrderStats {
+  total: number;
+  todayOrders: number;
+  todayRevenue: number;
+  totalRevenue: number;
+  pendingCount: number;
+  processingCount: number;
+  deliveredCount: number;
+  cancelledCount: number;
+}
+
 interface ShopContextType {
   // Navigation & View
   currentView: AppView;
@@ -78,6 +98,7 @@ interface ShopContextType {
 
   // Orders
   orders: Order[];
+  orderStats: OrderStats;
   lastCreatedOrder: Order | null;
   placeOrder: (orderData: {
     customerName: string;
@@ -91,7 +112,7 @@ interface ShopContextType {
     orderNote?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
-  refreshOrders: () => Promise<boolean>;
+  refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
 
   // Settings
@@ -255,6 +276,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_ORDERS;
   });
 
+  const [orderStats, setOrderStats] = useState<OrderStats>({
+    total: INITIAL_ORDERS.length,
+    todayOrders: 0,
+    todayRevenue: 0,
+    totalRevenue: INITIAL_ORDERS.reduce((sum, order) => order.status !== 'cancelled' ? sum + order.total : sum, 0),
+    pendingCount: INITIAL_ORDERS.filter((order) => order.status === 'pending').length,
+    processingCount: INITIAL_ORDERS.filter((order) => order.status === 'processing').length,
+    deliveredCount: INITIAL_ORDERS.filter((order) => order.status === 'delivered').length,
+    cancelledCount: INITIAL_ORDERS.filter((order) => order.status === 'cancelled').length,
+  });
+
   const [settings, setSettings] = useState<WebsiteSettings>(() => {
     const saved = safeStorageGet(STORAGE_KEYS.SETTINGS);
     if (saved) {
@@ -378,29 +410,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    if (!isAdminAuthenticated || !isSupabaseConfigured) return;
+  // Admin order data is loaded by AdminDashboard with server-side filters/pagination.
 
-    let cancelled = false;
-    const loadRemoteOrders = async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token) return;
-        const remoteOrders = await supabaseFetch<any[]>(
-          '/rest/v1/halal_orders?select=*,halal_order_items(*)&order=created_at.desc',
-          { token }
-        );
-        if (!cancelled && Array.isArray(remoteOrders)) {
-          setOrders(remoteOrders.map(mapRemoteOrder));
-        }
-      } catch (error) {
-        console.error('Supabase orders load failed; keeping local fallback.', error);
-      }
-    };
-
-    void loadRemoteOrders();
-    return () => { cancelled = true; };
-  }, [isAdminAuthenticated]);
 
   // Save to LocalStorage on change
   useEffect(() => {
@@ -634,17 +645,41 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Reload authoritative order data for the admin panel.
-  const refreshOrders = async (): Promise<boolean> => {
+  // Reload authoritative admin order data with server-side filtering and pagination.
+  const refreshOrders = async (filters: OrderListFilters = {}, append = false): Promise<boolean> => {
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remoteOrders = await supabaseFetch<any[]>(
-        '/rest/v1/halal_orders?select=*,halal_order_items(*)&order=created_at.desc',
-        { token }
-      );
-      if (!Array.isArray(remoteOrders)) throw new Error('Orders reload failed.');
-      setOrders(remoteOrders.map(mapRemoteOrder));
+
+      const limit = Math.min(Math.max(Number(filters.limit) || 20, 1), 100);
+      const offset = Math.max(Number(filters.offset) || 0, 0);
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_list_halal_orders', {
+        method: 'POST',
+        token,
+        body: {
+          p_status_filter: filters.status || 'all',
+          p_search: filters.search || '',
+          p_date_filter: filters.date || 'all',
+          p_sort: filters.sort || 'newest',
+          p_limit: limit,
+          p_offset: offset,
+        },
+      });
+
+      if (!remote || !Array.isArray(remote.items)) throw new Error('Orders reload returned invalid data.');
+
+      const mappedOrders = remote.items.map(mapRemoteOrder);
+      setOrders((prev) => append && offset > 0 ? [...prev, ...mappedOrders] : mappedOrders);
+      setOrderStats({
+        total: Number(remote.total || 0),
+        todayOrders: Number(remote.today_orders || 0),
+        todayRevenue: Number(remote.today_revenue || 0),
+        totalRevenue: Number(remote.total_revenue || 0),
+        pendingCount: Number(remote.pending_count || 0),
+        processingCount: Number(remote.processing_count || 0),
+        deliveredCount: Number(remote.delivered_count || 0),
+        cancelledCount: Number(remote.cancelled_count || 0),
+      });
       return true;
     } catch (error) {
       console.error('Supabase orders refresh failed:', error);
@@ -1202,6 +1237,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setDirectCheckoutItem,
 
         orders,
+        orderStats,
         lastCreatedOrder,
         placeOrder,
         getOrderByIdAndPhone,
