@@ -47,15 +47,15 @@ interface ShopContextType {
   rootCategories: Category[];
   getChildCategories: (parentId: string | null, onlyActive?: boolean) => Category[];
   getCategoryWithDescendants: (categoryId: string) => string[];
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: string, product: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  addCategory: (category: Omit<Category, 'id'>) => { success: boolean; category?: Category; message?: string };
-  updateCategory: (id: string, category: Partial<Category>) => { success: boolean; message?: string };
-  deleteCategory: (id: string) => { success: boolean; message?: string };
+  addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
+  updateProduct: (id: string, product: Partial<Product>) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
+  addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
+  updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
+  deleteCategory: (id: string) => Promise<{ success: boolean; message?: string }>;
   moveCategory: (id: string, newParentId: string | null) => { success: boolean; message?: string };
   reorderCategory: (id: string, direction: 'up' | 'down') => void;
-  toggleCategoryStatus: (id: string) => void;
+  toggleCategoryStatus: (id: string) => Promise<boolean>;
 
   // Cart
   cart: CartItem[];
@@ -656,114 +656,120 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Product CRUD
-  const addProduct = (productData: Omit<Product, 'id'>) => {
+  const addProduct = async (productData: Omit<Product, 'id'>): Promise<boolean> => {
     const newProduct: Product = {
       ...productData,
       id: typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : `prod-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
       slug: generateProductSlug(productData.nameEn || productData.nameBn, products),
+      price: Math.max(0, Number(productData.price) || 0),
+      regularPrice: productData.regularPrice == null ? undefined : Math.max(0, Number(productData.regularPrice) || 0),
+      stock: Math.max(0, Math.floor(Number(productData.stock) || 0)),
     };
-    setProducts((prev) => [newProduct, ...prev]);
 
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch('/rest/v1/halal_products', {
-          method: 'POST',
-          token,
-          body: {
-            id: newProduct.id,
-            name_bn: newProduct.nameBn,
-            name_en: newProduct.nameEn || null,
-            slug: newProduct.slug,
-            category_id: newProduct.categoryId || null,
-            category_ids: newProduct.categoryIds || [],
-            price: newProduct.price,
-            compare_at_price: newProduct.regularPrice ?? null,
-            stock: Math.max(0, Number(newProduct.stock) || 0),
-            image_url: newProduct.imageUrl || null,
-            description: newProduct.descriptionBn || null,
-            specs: Object.fromEntries((newProduct.specifications || []).map((spec) => [spec.label, spec.value])),
-            is_active: newProduct.isActive !== false,
-            is_featured: newProduct.isFeatured === true,
-            is_popular: newProduct.isPopular === true,
-          },
-        });
-      } catch (error) {
-        console.error('Product create failed:', error);
-        setProducts((prev) => prev.filter((product) => product.id !== newProduct.id));
-        showToast('পণ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
-        return;
-      }
-    })();
-
-    showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      await supabaseFetch('/rest/v1/halal_products', {
+        method: 'POST',
+        token,
+        headers: { Prefer: 'return=representation' },
+        body: {
+          id: newProduct.id,
+          name_bn: newProduct.nameBn,
+          name_en: newProduct.nameEn || null,
+          slug: newProduct.slug,
+          category_id: newProduct.categoryId || null,
+          category_ids: newProduct.categoryIds || [],
+          price: newProduct.price,
+          compare_at_price: newProduct.regularPrice ?? null,
+          stock: newProduct.stock,
+          image_url: newProduct.imageUrl || null,
+          description: newProduct.descriptionBn || null,
+          specs: Object.fromEntries((newProduct.specifications || []).map((spec) => [spec.label, spec.value])),
+          is_active: newProduct.isActive !== false,
+          is_featured: newProduct.isFeatured === true,
+          is_popular: newProduct.isPopular === true,
+        },
+      });
+      setProducts((prev) => [newProduct, ...prev.filter((product) => product.id !== newProduct.id)]);
+      showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
+      return true;
+    } catch (error) {
+      console.error('Product create failed:', error);
+      showToast('পণ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি যোগ করা হয়নি।');
+      return false;
+    }
   };
 
-  const updateProduct = (id: string, updated: Partial<Product>) => {
+  const updateProduct = async (id: string, updated: Partial<Product>): Promise<boolean> => {
     const currentProduct = products.find((product) => product.id === id);
-    if (!currentProduct) return;
-    const nextProduct = { ...currentProduct, ...updated };
-    setProducts((prev) => prev.map((product) => (product.id === id ? nextProduct : product)));
+    if (!currentProduct) return false;
+    const nextProduct: Product = {
+      ...currentProduct,
+      ...updated,
+      price: Math.max(0, Number(updated.price ?? currentProduct.price) || 0),
+      regularPrice: updated.regularPrice == null && currentProduct.regularPrice == null
+        ? undefined
+        : Math.max(0, Number(updated.regularPrice ?? currentProduct.regularPrice ?? 0) || 0),
+      stock: Math.max(0, Math.floor(Number(updated.stock ?? currentProduct.stock) || 0)),
+    };
 
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          token,
-          body: {
-            name_bn: nextProduct.nameBn,
-            name_en: nextProduct.nameEn || null,
-            category_id: nextProduct.categoryId || null,
-            category_ids: nextProduct.categoryIds || [],
-            price: nextProduct.price,
-            compare_at_price: nextProduct.regularPrice ?? null,
-            stock: Math.max(0, Number(nextProduct.stock) || 0),
-            image_url: nextProduct.imageUrl || null,
-            description: nextProduct.descriptionBn || null,
-            specs: Object.fromEntries((nextProduct.specifications || []).map((spec) => [spec.label, spec.value])),
-            is_active: nextProduct.isActive !== false,
-            is_featured: nextProduct.isFeatured === true,
-            is_popular: nextProduct.isPopular === true,
-          },
-        });
-      } catch (error) {
-        console.error('Product update failed:', error);
-        setProducts((prev) => prev.map((product) => (product.id === id ? currentProduct : product)));
-        showToast('পণ্যের তথ্য সংরক্ষণ করা যায়নি। আগের তথ্য ফিরিয়ে দেওয়া হয়েছে।');
-        return;
-      }
-    })();
-
-    showToast('পণ্যের তথ্য আপডেট করা হয়েছে');
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        token,
+        headers: { Prefer: 'return=representation' },
+        body: {
+          name_bn: nextProduct.nameBn,
+          name_en: nextProduct.nameEn || null,
+          category_id: nextProduct.categoryId || null,
+          category_ids: nextProduct.categoryIds || [],
+          price: nextProduct.price,
+          compare_at_price: nextProduct.regularPrice ?? null,
+          stock: nextProduct.stock,
+          image_url: nextProduct.imageUrl || null,
+          description: nextProduct.descriptionBn || null,
+          specs: Object.fromEntries((nextProduct.specifications || []).map((spec) => [spec.label, spec.value])),
+          is_active: nextProduct.isActive !== false,
+          is_featured: nextProduct.isFeatured === true,
+          is_popular: nextProduct.isPopular === true,
+        },
+      });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product update affected no row.');
+      setProducts((prev) => prev.map((product) => (product.id === id ? nextProduct : product)));
+      showToast('পণ্যের তথ্য আপডেট করা হয়েছে');
+      return true;
+    } catch (error) {
+      console.error('Product update failed:', error);
+      showToast('পণ্যের তথ্য সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return false;
+    }
   };
 
-  const deleteProduct = (id: string) => {
+  const deleteProduct = async (id: string): Promise<boolean> => {
     const target = products.find((product) => product.id === id);
-    if (!target) return;
-    setProducts((prev) => prev.filter((product) => product.id !== id));
-
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
-          method: 'DELETE',
-          token,
-        });
-      } catch (error) {
-        console.error('Product delete failed:', error);
-        setProducts((prev) => [target, ...prev]);
-        showToast('পণ্যটি মুছে ফেলা যায়নি। পরিবর্তনটি বাতিল করা হয়েছে।');
-        return;
-      }
-    })();
-
-    showToast('পণ্যটি মুছে ফেলা হয়েছে');
+    if (!target) return false;
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_products?id=eq.${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        token,
+        headers: { Prefer: 'return=representation' },
+      });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product delete affected no row.');
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+      showToast('পণ্যটি মুছে ফেলা হয়েছে');
+      return true;
+    } catch (error) {
+      console.error('Product delete failed:', error);
+      showToast('পণ্যটি মুছে ফেলা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return false;
+    }
   };
 
   // Category Hierarchical Helpers & Actions
