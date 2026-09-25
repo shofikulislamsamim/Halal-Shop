@@ -90,7 +90,7 @@ interface ShopContextType {
     orderNote?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
 
   // Settings
   settings: WebsiteSettings;
@@ -629,30 +629,42 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Admin order status update
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<boolean> => {
     const current = orders.find((order) => order.id === orderId);
-    if (!current) return;
+    if (!current || current.status === status) return false;
 
-    setOrders((prev) =>
-      prev.map((order) => (order.id === orderId ? { ...order, status } : order))
-    );
-
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch('/rest/v1/rpc/admin_update_halal_order_status', {
-          method: 'POST',
-          token,
-          body: { p_order_code: orderId, p_status: status },
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_update_halal_order_status', {
+        method: 'POST',
+        token,
+        body: { p_order_code: orderId, p_status: status },
+      });
+      const updatedStatus = remote?.status as OrderStatus | undefined;
+      setOrders((prev) => prev.map((order) => (
+        order.id === orderId
+          ? { ...order, status: updatedStatus || status }
+          : order
+      )));
+      if (status === 'cancelled') {
+        const cancelledItems = current.items || [];
+        const restoreByProduct = new Map<string, number>();
+        cancelledItems.forEach((item) => {
+          restoreByProduct.set(item.productId, (restoreByProduct.get(item.productId) || 0) + Math.max(0, Math.floor(item.quantity)));
         });
-        showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
-      } catch (error) {
-        console.error('Order status update failed:', error);
-        setOrders((prev) => prev.map((order) => (order.id === orderId ? current : order)));
-        showToast('অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি।');
+        setProducts((prev) => prev.map((product) => {
+          const restore = restoreByProduct.get(product.id);
+          return restore ? { ...product, stock: product.stock + restore } : product;
+        }));
       }
-    })();
+      showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
+      return true;
+    } catch (error) {
+      console.error('Order status update failed:', error);
+      showToast('অর্ডারের স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return false;
+    }
   };
 
   // Product CRUD
