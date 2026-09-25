@@ -606,16 +606,16 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Order tracking search
   const getOrderByIdAndPhone = async (orderId: string, phone: string): Promise<Order | undefined> => {
     if (!isSupabaseConfigured) {
-      const cleanPhone = phone.replace(/[\\s\\-+]/g, '');
+      const cleanPhone = phone.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '');
       return orders.find(
         (order) =>
           order.id.toUpperCase() === orderId.trim().toUpperCase() &&
-          order.mobile.replace(/[\\s\\-+]/g, '') === cleanPhone
+          order.mobile.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '') === cleanPhone
       );
     }
 
     try {
-      const cleanPhone = phone.replace(/[\s\-+]/g, '');
+      const cleanPhone = phone.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '');
       const remote = await supabaseFetch<any>('/rest/v1/rpc/get_halal_order_by_code_phone', {
         method: 'POST',
         body: {
