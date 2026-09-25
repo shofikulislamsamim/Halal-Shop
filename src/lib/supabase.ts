@@ -14,6 +14,7 @@ type SupabaseOptions = {
   method?: string;
   body?: unknown;
   token?: string | null;
+  headers?: Record<string, string>;
 };
 
 export async function supabaseFetch<T = unknown>(
@@ -31,6 +32,10 @@ export async function supabaseFetch<T = unknown>(
 
   if (options.token) {
     headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  if (options.headers) {
+    Object.assign(headers, options.headers);
   }
 
   let response = await fetch(`${SUPABASE_URL}${path}`, {
