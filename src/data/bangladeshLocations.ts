@@ -306,3 +306,105 @@ export function searchLocations(query: string) {
 
   return results.slice(0, 8);
 }
+
+
+/**
+ * Complete Bangladesh location source.
+ * The checkout keeps the bundled dataset as an immediate fallback and loads
+ * the complete 64-district / 495-upazila / union hierarchy when online.
+ */
+export const COMPLETE_BD_LOCATION_URL =
+  'https://iqbalhasandev.github.io/bangladesh-geo-json/bangladesh-geo.json';
+
+export interface CompleteBdLocationData {
+  divisions: BdDivision[];
+  districts: BdDistrict[];
+  upazilas: BdUpazilaThana[];
+}
+
+export async function loadCompleteBangladeshLocations(): Promise<CompleteBdLocationData> {
+  const response = await fetch(COMPLETE_BD_LOCATION_URL, {
+    method: 'GET',
+    mode: 'cors',
+    cache: 'force-cache',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Location data request failed: ${response.status}`);
+  }
+
+  const source = await response.json();
+
+  const divisions: BdDivision[] = [];
+  const districts: BdDistrict[] = [];
+  const upazilas: BdUpazilaThana[] = [];
+
+  const slug = (value: string) =>
+    value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  for (const [divisionIndex, division] of source.entries()) {
+    const divisionId = slug(division.name || `division-${divisionIndex + 1}`);
+    const divisionRecord: BdDivision = {
+      id: divisionId,
+      nameBn: division.bn_name || division.name,
+      nameEn: division.name || division.bn_name,
+    };
+    divisions.push(divisionRecord);
+
+    for (const [districtIndex, district] of (division.districts || []).entries()) {
+      const districtId = `${divisionId}-${slug(district.name || district.bn_name || String(districtIndex))}`;
+      const districtRecord: BdDistrict = {
+        id: districtId,
+        divisionId,
+        nameBn: district.bn_name || district.name,
+        nameEn: district.name || district.bn_name,
+        isDhakaCity: district.bn_name === 'ঢাকা' || district.name === 'Dhaka',
+      };
+      districts.push(districtRecord);
+
+      for (const [upazilaIndex, upazila] of (district.upazilas || []).entries()) {
+        const upazilaId = `${districtId}-${slug(upazila.name || upazila.bn_name || String(upazilaIndex))}`;
+        const unionNames = (upazila.unions || [])
+          .map((item: { bn_name?: string; name?: string }) => item.bn_name || item.name)
+          .filter(Boolean);
+        const pourashavaNames = (upazila.pourashavas || [])
+          .map((item: { bn_name?: string; name?: string }) => item.bn_name || item.name)
+          .filter(Boolean);
+
+        upazilas.push({
+          id: upazilaId,
+          districtId,
+          nameBn: upazila.bn_name || upazila.name,
+          nameEn: upazila.name || upazila.bn_name,
+          isUrban: pourashavaNames.length > 0,
+          unions: unionNames,
+          areas: [...new Set([...unionNames, ...pourashavaNames])],
+        });
+      }
+    }
+  }
+
+  // The national hierarchy lists Dhaka as one district, while the checkout
+  // also needs Dhaka metropolitan thanas for practical delivery addresses.
+  const dhakaDistrict = districts.find((d) => d.isDhakaCity);
+  if (dhakaDistrict) {
+    const localDhakaThanas = BD_UPAZILAS_THANAS.filter(
+      (item) => item.districtId === 'dhaka_city'
+    );
+
+    for (const thana of localDhakaThanas) {
+      if (!upazilas.some((item) => item.nameBn === thana.nameBn && item.districtId === dhakaDistrict.id)) {
+        upazilas.push({
+          ...thana,
+          id: `${dhakaDistrict.id}-metro-${thana.id}`,
+          districtId: dhakaDistrict.id,
+          unions: thana.areas || [],
+          areas: thana.areas || [],
+          isUrban: true,
+        });
+      }
+    }
+  }
+
+  return { divisions, districts, upazilas };
+}
