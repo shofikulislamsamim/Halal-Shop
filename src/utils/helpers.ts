@@ -25,7 +25,13 @@ export function toBengaliNumber(num: number | string): string {
  * Total 11 digits (e.g., 01712345678)
  */
 export function isValidBdPhone(phone: string): boolean {
-  const cleanPhone = phone.replace(/[\s\-+]/g, '');
+  // Keep each removable character in its own expression so the hyphen
+  // can never be interpreted as a character-class range.
+  const cleanPhone = phone
+    .replace(/\s/g, '')
+    .replace(/\+/g, '')
+    .replace(/-/g, '');
+
   // Matches 01XXXXXXXXX (11 digits) or with 8801XXXXXXXXX (13 digits)
   const bdPhoneRegex = /^(?:88)?01[3-9]\d{8}$/;
   return bdPhoneRegex.test(cleanPhone);
@@ -35,7 +41,11 @@ export function isValidBdPhone(phone: string): boolean {
  * Clean phone number to standard 11-digit 01XXXXXXXXX
  */
 export function sanitizeBdPhone(phone: string): string {
-  let clean = phone.replace(/[\s\-+]/g, '');
+  let clean = phone
+    .replace(/\s/g, '')
+    .replace(/\+/g, '')
+    .replace(/-/g, '');
+
   if (clean.startsWith('8801')) {
     clean = clean.substring(2);
   }
@@ -47,7 +57,11 @@ export function sanitizeBdPhone(phone: string): string {
  */
 export function getWhatsAppUrl(whatsappNumber: string, message: string): string {
   // Ensure country code 88
-  let cleanNum = whatsappNumber.replace(/[\s\-+]/g, '');
+  let cleanNum = whatsappNumber
+    .replace(/\s/g, '')
+    .replace(/\+/g, '')
+    .replace(/-/g, '');
+
   if (cleanNum.startsWith('01')) {
     cleanNum = '88' + cleanNum;
   }
