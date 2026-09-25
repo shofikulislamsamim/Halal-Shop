@@ -15,11 +15,19 @@
       "@context": "https://schema.org",
       "@graph": [
         {
-          "@type": "OnlineStore",
+          "@type": "Organization",
           "@id": "https://shofikulislamsamim.github.io/Halal-Shop/#organization",
           "name": "Halal Shop",
           "url": "https://shofikulislamsamim.github.io/Halal-Shop/",
           "logo": "https://shofikulislamsamim.github.io/Halal-Shop/halal-shop-logo.jpg"
+        },
+        {
+          "@type": "OnlineStore",
+          "@id": "https://shofikulislamsamim.github.io/Halal-Shop/#store",
+          "name": "Halal Shop",
+          "url": "https://shofikulislamsamim.github.io/Halal-Shop/",
+          "logo": "https://shofikulislamsamim.github.io/Halal-Shop/halal-shop-logo.jpg",
+          "parentOrganization": { "@id": "https://shofikulislamsamim.github.io/Halal-Shop/#organization" }
         },
         {
           "@type": "WebSite",
