@@ -21,6 +21,7 @@ import {
   LogOut,
   MapPin,
   Phone,
+  MessageCircle,
   Calendar,
   AlertTriangle,
   FileText,
@@ -194,6 +195,8 @@ export const AdminDashboard: React.FC = () => {
 
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [orderDateFilter, setOrderDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days'>('all');
+  const [orderSort, setOrderSort] = useState<'newest' | 'oldest' | 'pending'>('newest');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
@@ -370,28 +373,60 @@ export const AdminDashboard: React.FC = () => {
         </React.Fragment>
       );
     });
-  // Filtered Orders
-  const filteredOrders = orders.filter((order) => {
-    if (orderStatusFilter !== 'all' && order.status !== orderStatusFilter) {
-      return false;
-    }
-    if (orderSearchQuery.trim()) {
-      const q = orderSearchQuery.trim().toLowerCase();
-      const searchable = [
-        order.id,
-        order.customerName,
-        order.mobile,
-        order.altMobile || '',
-        order.orderNote || '',
-        order.address?.formattedFullAddress || '',
-        order.address?.district || '',
-        order.address?.upazilaThana || '',
-        order.address?.union || '',
-      ].join(' ').toLowerCase();
-      return searchable.includes(q);
-    }
-    return true;
-  });
+  // Filtered + sorted orders. Filtering stays client-side for the current dataset;
+  // refreshOrders() always reloads the authoritative Supabase list first.
+  const filteredOrders = orders
+    .filter((order) => {
+      if (orderStatusFilter !== 'all' && order.status !== orderStatusFilter) return false;
+
+      if (orderDateFilter !== 'all') {
+        const created = new Date(order.createdAt);
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfTomorrow = new Date(startOfToday);
+        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+        if (orderDateFilter === 'today' && !(created >= startOfToday && created < startOfTomorrow)) return false;
+        if (orderDateFilter === 'yesterday') {
+          const start = new Date(startOfToday);
+          start.setDate(start.getDate() - 1);
+          if (!(created >= start && created < startOfToday)) return false;
+        }
+        if (orderDateFilter === '7days') {
+          const start = new Date(startOfToday);
+          start.setDate(start.getDate() - 6);
+          if (created < start || created >= startOfTomorrow) return false;
+        }
+        if (orderDateFilter === '30days') {
+          const start = new Date(startOfToday);
+          start.setDate(start.getDate() - 29);
+          if (created < start || created >= startOfTomorrow) return false;
+        }
+      }
+
+      if (orderSearchQuery.trim()) {
+        const q = orderSearchQuery.trim().toLowerCase();
+        const searchable = [
+          order.id, order.customerName, order.mobile, order.altMobile || '',
+          order.orderNote || '', order.address?.formattedFullAddress || '',
+          order.address?.division || '', order.address?.district || '',
+          order.address?.upazilaThana || '', order.address?.union || '',
+          order.address?.area || '', order.address?.village || '',
+          order.address?.detailedAddress || '',
+        ].join(' ').toLowerCase();
+        if (!searchable.includes(q)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (orderSort === 'pending') {
+        const rank: Record<OrderStatus, number> = { pending: 0, confirmed: 1, processing: 2, shipped: 3, delivered: 4, cancelled: 5 };
+        const diff = rank[a.status] - rank[b.status];
+        if (diff !== 0) return diff;
+      }
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return orderSort === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
 
   const filteredProducts = products.filter((product) => {
     if (productStatusFilter === 'active' && !product.isActive) return false;
@@ -462,9 +497,21 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Calculate order stats
+  // Dashboard statistics
+  const nowForStats = new Date();
+  const startTodayForStats = new Date(nowForStats.getFullYear(), nowForStats.getMonth(), nowForStats.getDate());
+  const startTomorrowForStats = new Date(startTodayForStats);
+  startTomorrowForStats.setDate(startTomorrowForStats.getDate() + 1);
+  const todayOrders = orders.filter((o) => {
+    const t = new Date(o.createdAt);
+    return t >= startTodayForStats && t < startTomorrowForStats;
+  });
   const totalRevenue = orders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.total : sum), 0);
+  const todayRevenue = todayOrders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.total : sum), 0);
   const pendingCount = orders.filter((o) => o.status === 'pending').length;
+  const processingCount = orders.filter((o) => o.status === 'processing').length;
+  const deliveredCount = orders.filter((o) => o.status === 'delivered').length;
+  const cancelledCount = orders.filter((o) => o.status === 'cancelled').length;
 
   if (!isAdminLoggedIn) {
     const isLockedOut = lockoutSeconds > 0;
@@ -778,24 +825,29 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* Admin Stats Overview Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        {[
+          ['মোট অর্ডার', orders.length, 'text-stone-900'],
+          ['আজকের অর্ডার', todayOrders.length, 'text-sky-700'],
+          ['পেন্ডিং', pendingCount, 'text-amber-700'],
+          ['প্রসেসিং', processingCount, 'text-indigo-700'],
+          ['ডেলিভারড', deliveredCount, 'text-emerald-700'],
+          ['বাতিল', cancelledCount, 'text-rose-700'],
+        ].map(([label, value, tone]) => (
+          <div key={String(label)} className="bg-white p-3.5 rounded-2xl border border-stone-200 shadow-2xs">
+            <span className="text-[10px] text-stone-500 font-semibold block">{label}</span>
+            <span className={'text-xl sm:text-2xl font-black ' + String(tone)}>{value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs">
-          <span className="text-[11px] text-stone-500 font-semibold block">মোট অর্ডার</span>
-          <span className="text-xl sm:text-2xl font-black text-stone-900">{orders.length}</span>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs">
-          <span className="text-[11px] text-stone-500 font-semibold block">পেন্ডিং অর্ডার</span>
-          <span className="text-xl sm:text-2xl font-black text-amber-700">{pendingCount}</span>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs">
-          <span className="text-[11px] text-stone-500 font-semibold block">সক্রিয় পণ্য</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-800">
-            {products.filter((p) => p.isActive).length}
-          </span>
+          <span className="text-[11px] text-stone-500 font-semibold block">আজকের বিক্রি</span>
+          <span className="text-xl font-black text-emerald-800">{formatPrice(todayRevenue)}</span>
         </div>
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs">
           <span className="text-[11px] text-stone-500 font-semibold block">মোট বিক্রি (Revenue)</span>
-          <span className="text-lg sm:text-xl font-black text-stone-900">{formatPrice(totalRevenue)}</span>
+          <span className="text-xl font-black text-stone-900">{formatPrice(totalRevenue)}</span>
         </div>
       </div>
 
@@ -895,6 +947,20 @@ export const AdminDashboard: React.FC = () => {
               <option value="delivered">ডেলিভারড</option>
               <option value="cancelled">বাতিল</option>
             </select>
+            <select value={orderDateFilter} onChange={(e) => setOrderDateFilter(e.target.value as typeof orderDateFilter)}
+              className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300" aria-label="তারিখ ফিল্টার">
+              <option value="all">সব তারিখ</option>
+              <option value="today">আজ</option>
+              <option value="yesterday">গতকাল</option>
+              <option value="7days">শেষ ৭ দিন</option>
+              <option value="30days">শেষ ৩০ দিন</option>
+            </select>
+            <select value={orderSort} onChange={(e) => setOrderSort(e.target.value as typeof orderSort)}
+              className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300" aria-label="অর্ডার সাজান">
+              <option value="newest">নতুন আগে</option>
+              <option value="oldest">পুরোনো আগে</option>
+              <option value="pending">Pending আগে</option>
+            </select>
             <button type="button" onClick={() => void handleRefreshOrders()} disabled={isRefreshingOrders} className="w-full sm:w-auto px-3 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-stone-700 flex items-center justify-center gap-1.5">
               <RefreshCw className={'w-3.5 h-3.5 ' + (isRefreshingOrders ? 'animate-spin' : '')} />
               {isRefreshingOrders ? 'লোড হচ্ছে...' : 'রিফ্রেশ'}
@@ -926,6 +992,7 @@ export const AdminDashboard: React.FC = () => {
                           </span>
                         </div>
                         <div className="text-xs text-stone-600 mt-1">{order.customerName} · {order.mobile}</div>
+                        <div className="text-[11px] text-stone-500 mt-1 truncate">📍 {[order.address?.district, order.address?.upazilaThana, order.address?.area || order.address?.union].filter(Boolean).join(' → ') || order.address?.formattedFullAddress}</div>
                         <div className="text-[11px] text-stone-400 mt-1">
                           {new Date(order.createdAt).toLocaleString('bn-BD')} · {order.items.length}টি আইটেম
                         </div>
@@ -958,7 +1025,8 @@ export const AdminDashboard: React.FC = () => {
                                 if (nextStatus === 'cancelled' && !window.confirm('এই অর্ডারটি বাতিল করলে সংশ্লিষ্ট পণ্যের স্টক পুনরায় যোগ হবে। আপনি কি নিশ্চিত?')) return;
                                 void handleOrderStatusChange(order.id, nextStatus);
                               }}
-                              className={'px-3 py-1.5 rounded-lg text-[11px] font-bold ' + (
+                              disabled={Boolean(updatingOrderId)}
+                              className={'px-3 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50 disabled:cursor-not-allowed ' + (
                                 nextStatus === 'cancelled'
                                   ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
                                   : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
