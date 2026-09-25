@@ -660,35 +660,35 @@ export const AdminDashboard: React.FC = () => {
   }
 
   // --- SAVE PRODUCT HANDLER ---
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProduct?.nameBn || !editingProduct?.price) {
-      showToast('পণ্যের নাম ও মূল্য পূরণ করুন');
+    if (!editingProduct?.nameBn || editingProduct.price == null || Number(editingProduct.price) < 0) {
+      showToast('পণ্যের নাম ও সঠিক মূল্য দিন');
       return;
     }
 
-    if (editingProduct.id) {
-      updateProduct(editingProduct.id, editingProduct);
-    } else {
-      addProduct(editingProduct as any);
-    }
+    const success = editingProduct.id
+      ? await updateProduct(editingProduct.id, editingProduct)
+      : await addProduct(editingProduct as any);
+
+    if (!success) return;
     setIsProductModalOpen(false);
     setEditingProduct(null);
   };
 
   // --- SAVE CATEGORY HANDLER ---
-  const handleSaveCategory = (e: React.FormEvent) => {
+  const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCategory?.nameBn || !editingCategory?.slug) {
+    if (!editingCategory?.nameBn?.trim() || !editingCategory?.slug?.trim()) {
       showToast('ক্যাটাগরির নাম ও স্ল্যাগ দিন');
       return;
     }
 
-    if (editingCategory.id) {
-      updateCategory(editingCategory.id, editingCategory);
-    } else {
-      addCategory(editingCategory as any);
-    }
+    const result = editingCategory.id
+      ? await updateCategory(editingCategory.id, editingCategory)
+      : await addCategory(editingCategory as any);
+
+    if (!result.success) return;
     setIsCategoryModalOpen(false);
     setEditingCategory(null);
   };
