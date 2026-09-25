@@ -90,6 +90,13 @@ const AppContent: React.FC = () => {
 };
 
 export default function App() {
+  useEffect(() => {
+    // Remove the static startup fallback only after React has successfully
+    // mounted the application. This prevents render-time failures from
+    // turning the page into a completely blank screen.
+    document.getElementById('app-startup-fallback')?.remove();
+  }, []);
+
   return (
     <ShopProvider>
       <AppContent />
