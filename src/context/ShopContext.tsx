@@ -122,6 +122,7 @@ interface ShopContextType {
   refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
   updateOrderAmount: (orderId: string, total: number) => Promise<number | null>;
+  updateOrderDelivery: (orderId: string, delivery: number) => Promise<{ delivery: number; total: number } | null>;
 
   // Settings
   settings: WebsiteSettings;
@@ -843,6 +844,49 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Order amount update failed:', error);
       const raw = error instanceof Error ? error.message : '';
       let message = 'অর্ডারের অ্যামাউন্ট সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।';
+      try {
+        const parsed = JSON.parse(raw);
+        const serverMessage = parsed?.message || parsed?.error_description || parsed?.details;
+        if (typeof serverMessage === 'string' && serverMessage.trim()) message = serverMessage.trim();
+      } catch {
+        if (raw && raw.length < 220 && !raw.includes('<')) message = raw;
+      }
+      showToast(message);
+      return null;
+    }
+  };
+
+  const updateOrderDelivery = async (orderId: string, delivery: number): Promise<{ delivery: number; total: number } | null> => {
+    const current = orders.find((order) => order.id === orderId);
+    if (!current) return null;
+
+    const normalizedDelivery = Math.round(Number(delivery) * 100) / 100;
+    if (!Number.isFinite(normalizedDelivery) || normalizedDelivery < 0) {
+      showToast('সঠিক ডেলিভারি চার্জ দিন।');
+      return null;
+    }
+
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_update_halal_order_delivery', {
+        method: 'POST', token,
+        body: { p_order_code: orderId, p_delivery: normalizedDelivery },
+      });
+      const updatedDelivery = Number(remote?.delivery_fee);
+      const updatedTotal = Number(remote?.total);
+      if (!Number.isFinite(updatedDelivery) || !Number.isFinite(updatedTotal)) throw new Error('Server returned invalid order amounts.');
+
+      setOrders((prev) => prev.map((order) => order.id === orderId
+        ? { ...order, deliveryCharge: updatedDelivery, total: updatedTotal }
+        : order
+      ));
+      showToast('ডেলিভারি চার্জ ৳' + updatedDelivery.toLocaleString('bn-BD') + ' করা হয়েছে। মোট অ্যামাউন্টও সমন্বয় হয়েছে।');
+      return { delivery: updatedDelivery, total: updatedTotal };
+    } catch (error) {
+      console.error('Order delivery update failed:', error);
+      const raw = error instanceof Error ? error.message : '';
+      let message = 'ডেলিভারি চার্জ সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।';
       try {
         const parsed = JSON.parse(raw);
         const serverMessage = parsed?.message || parsed?.error_description || parsed?.details;
