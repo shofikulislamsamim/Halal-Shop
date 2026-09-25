@@ -671,7 +671,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token = getSupabaseAccessToken();
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-      await supabaseFetch('/rest/v1/halal_products', {
+      const remote = await supabaseFetch<any[]>('/rest/v1/halal_products', {
         method: 'POST',
         token,
         headers: { Prefer: 'return=representation' },
@@ -693,6 +693,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           is_popular: newProduct.isPopular === true,
         },
       });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Product create affected no row.');
       setProducts((prev) => [newProduct, ...prev.filter((product) => product.id !== newProduct.id)]);
       showToast('নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে');
       return true;
