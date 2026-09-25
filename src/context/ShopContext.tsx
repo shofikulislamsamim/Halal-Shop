@@ -551,7 +551,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         productId: item.productId,
         quantity: item.quantity,
       })),
-      deliveryCharge: orderData.deliveryCharge,
+      // Pricing and delivery are recalculated securely by the database function.
       orderNote: orderData.orderNote,
     };
 
@@ -593,7 +593,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Order tracking search
   const getOrderByIdAndPhone = async (orderId: string, phone: string): Promise<Order | undefined> => {
-    if (!isSupabaseConfigured) return orders.find((order) => order.id.toUpperCase() === orderId.trim().toUpperCase());
+    if (!isSupabaseConfigured) {
+      const cleanPhone = phone.replace(/[\\s\\-+]/g, '');
+      return orders.find(
+        (order) =>
+          order.id.toUpperCase() === orderId.trim().toUpperCase() &&
+          order.mobile.replace(/[\\s\\-+]/g, '') === cleanPhone
+      );
+    }
 
     try {
       const cleanPhone = phone.replace(/[\s\-+]/g, '');
