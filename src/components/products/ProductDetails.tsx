@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { formatPrice, getWhatsAppUrl, getProductWhatsAppMessage } from '../../utils/helpers';
 import { getCategoryPath } from '../../utils/categoryHelpers';
@@ -30,7 +30,12 @@ export const ProductDetails: React.FC = () => {
 
   const [quantity, setQuantity] = useState(1);
 
-  const product = products.find((p) => p.id === selectedProductId) || products[0];
+  const product = products.find((p) => p.id === selectedProductId);
+
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedProductId]);
+
   const category = categories.find((c) => c.id === product?.categoryId);
 
   if (!product) {
@@ -60,7 +65,10 @@ export const ProductDetails: React.FC = () => {
   );
 
   const relatedProducts = products
-    .filter((p) => p.categoryId === product.categoryId && p.id !== product.id && p.isActive)
+    .filter((p) => {
+      if (!p.isActive || p.id === product.id) return false;
+      return p.categoryId === product.categoryId || p.categoryIds?.includes(product.categoryId);
+    })
     .slice(0, 4);
 
   const handleQtyDecrease = () => {
