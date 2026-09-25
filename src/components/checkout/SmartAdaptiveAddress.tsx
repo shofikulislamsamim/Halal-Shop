@@ -373,7 +373,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           {/* House / Road Details */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
-              বাড়ির নাম বা সুনির্দিষ্ট ঠিকানা <span className="text-stone-400">(ঐচ্ছিক)</span>
+              বাড়ির নাম বা সুনির্দিষ্ট ঠিকানা <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -498,7 +498,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
           {/* Detailed Address */}
           <div>
             <label className="block text-xs font-semibold text-stone-700 mb-1">
-              বিস্তারিত ঠিকানা <span className="text-stone-400">(ঐচ্ছিক)</span>
+              বিস্তারিত ঠিকানা <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
