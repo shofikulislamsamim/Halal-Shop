@@ -39,6 +39,7 @@ export const AdminDashboard: React.FC = () => {
     products,
     categories,
     orders,
+    orderStats,
     settings,
     isAdminLoggedIn,
     adminLogout,
@@ -203,6 +204,8 @@ export const AdminDashboard: React.FC = () => {
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const [orderPage, setOrderPage] = useState(1);
   const ORDERS_PER_PAGE = 20;
+  const [debouncedOrderSearchQuery, setDebouncedOrderSearchQuery] = useState('');
+  const [isLoadingMoreOrders, setIsLoadingMoreOrders] = useState(false);
 
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -392,67 +395,30 @@ export const AdminDashboard: React.FC = () => {
         </React.Fragment>
       );
     });
-  // Filtered + sorted orders. Filtering stays client-side for the current dataset;
-  // refreshOrders() always reloads the authoritative Supabase list first.
-  const filteredOrders = orders
-    .filter((order) => {
-      if (orderStatusFilter !== 'all' && order.status !== orderStatusFilter) return false;
-
-      if (orderDateFilter !== 'all') {
-        const created = new Date(order.createdAt);
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const startOfTomorrow = new Date(startOfToday);
-        startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
-        if (orderDateFilter === 'today' && !(created >= startOfToday && created < startOfTomorrow)) return false;
-        if (orderDateFilter === 'yesterday') {
-          const start = new Date(startOfToday);
-          start.setDate(start.getDate() - 1);
-          if (!(created >= start && created < startOfToday)) return false;
-        }
-        if (orderDateFilter === '7days') {
-          const start = new Date(startOfToday);
-          start.setDate(start.getDate() - 6);
-          if (created < start || created >= startOfTomorrow) return false;
-        }
-        if (orderDateFilter === '30days') {
-          const start = new Date(startOfToday);
-          start.setDate(start.getDate() - 29);
-          if (created < start || created >= startOfTomorrow) return false;
-        }
-      }
-
-      if (orderSearchQuery.trim()) {
-        const q = orderSearchQuery.trim().toLowerCase();
-        const searchable = [
-          order.id, order.customerName, order.mobile, order.altMobile || '',
-          order.orderNote || '', order.address?.formattedFullAddress || '',
-          order.address?.division || '', order.address?.district || '',
-          order.address?.upazilaThana || '', order.address?.union || '',
-          order.address?.area || '', order.address?.village || '',
-          order.address?.detailedAddress || '',
-        ].join(' ').toLowerCase();
-        if (!searchable.includes(q)) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      if (orderSort === 'pending') {
-        const rank: Record<OrderStatus, number> = { pending: 0, confirmed: 1, processing: 2, shipped: 3, delivered: 4, cancelled: 5 };
-        const diff = rank[a.status] - rank[b.status];
-        if (diff !== 0) return diff;
-      }
-      const aTime = new Date(a.createdAt).getTime();
-      const bTime = new Date(b.createdAt).getTime();
-      return orderSort === 'oldest' ? aTime - bTime : bTime - aTime;
-    });
-
-  const paginatedOrders = filteredOrders.slice(0, orderPage * ORDERS_PER_PAGE);
-  const hasMoreOrders = paginatedOrders.length < filteredOrders.length;
+  // Orders are filtered, sorted, counted and paginated on the server.
+  const paginatedOrders = orders;
+  const hasMoreOrders = orders.length < orderStats.total;
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedOrderSearchQuery(orderSearchQuery);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [orderSearchQuery]);
+
+  useEffect(() => {
+    if (!isAdminLoggedIn) return;
+
     setOrderPage(1);
-  }, [orderStatusFilter, orderSearchQuery, orderDateFilter, orderSort]);
+    void refreshOrders({
+      status: orderStatusFilter,
+      search: debouncedOrderSearchQuery,
+      date: orderDateFilter,
+      sort: orderSort,
+      limit: ORDERS_PER_PAGE,
+      offset: 0,
+    });
+  }, [isAdminLoggedIn, orderStatusFilter, debouncedOrderSearchQuery, orderDateFilter, orderSort]);
 
   const filteredProducts = products.filter((product) => {
     if (productStatusFilter === 'active' && !product.isActive) return false;
@@ -516,28 +482,47 @@ export const AdminDashboard: React.FC = () => {
   const handleRefreshOrders = async () => {
     if (isRefreshingOrders) return;
     setIsRefreshingOrders(true);
+    setOrderPage(1);
     try {
-      await refreshOrders();
+      await refreshOrders({
+        status: orderStatusFilter,
+        search: debouncedOrderSearchQuery,
+        date: orderDateFilter,
+        sort: orderSort,
+        limit: ORDERS_PER_PAGE,
+        offset: 0,
+      });
     } finally {
       setIsRefreshingOrders(false);
     }
   };
 
-  // Dashboard statistics
-  const nowForStats = new Date();
-  const startTodayForStats = new Date(nowForStats.getFullYear(), nowForStats.getMonth(), nowForStats.getDate());
-  const startTomorrowForStats = new Date(startTodayForStats);
-  startTomorrowForStats.setDate(startTomorrowForStats.getDate() + 1);
-  const todayOrders = orders.filter((o) => {
-    const t = new Date(o.createdAt);
-    return t >= startTodayForStats && t < startTomorrowForStats;
-  });
-  const totalRevenue = orders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.total : sum), 0);
-  const todayRevenue = todayOrders.reduce((sum, o) => (o.status !== 'cancelled' ? sum + o.total : sum), 0);
-  const pendingCount = orders.filter((o) => o.status === 'pending').length;
-  const processingCount = orders.filter((o) => o.status === 'processing').length;
-  const deliveredCount = orders.filter((o) => o.status === 'delivered').length;
-  const cancelledCount = orders.filter((o) => o.status === 'cancelled').length;
+  const handleLoadMoreOrders = async () => {
+    if (isRefreshingOrders || isLoadingMoreOrders || !hasMoreOrders) return;
+    setIsLoadingMoreOrders(true);
+    try {
+      const loaded = await refreshOrders({
+        status: orderStatusFilter,
+        search: debouncedOrderSearchQuery,
+        date: orderDateFilter,
+        sort: orderSort,
+        limit: ORDERS_PER_PAGE,
+        offset: orders.length,
+      }, true);
+      if (loaded) setOrderPage((page) => page + 1);
+    } finally {
+      setIsLoadingMoreOrders(false);
+    }
+  };
+
+  // Dashboard statistics are returned from the same authoritative server query.
+  const todayOrders = orderStats.todayOrders;
+  const todayRevenue = orderStats.todayRevenue;
+  const totalRevenue = orderStats.totalRevenue;
+  const pendingCount = orderStats.pendingCount;
+  const processingCount = orderStats.processingCount;
+  const deliveredCount = orderStats.deliveredCount;
+  const cancelledCount = orderStats.cancelledCount;
 
   if (!isAdminLoggedIn) {
     const isLockedOut = lockoutSeconds > 0;
@@ -993,7 +978,7 @@ export const AdminDashboard: React.FC = () => {
             </button>
           </div>
 
-          {filteredOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">
               এই ফিল্টারে কোনো অর্ডার পাওয়া যায়নি।
             </div>
@@ -1073,10 +1058,11 @@ export const AdminDashboard: React.FC = () => {
             <div className="pt-2 text-center">
               <button
                 type="button"
-                onClick={() => setOrderPage((page) => page + 1)}
-                className="px-4 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-bold text-stone-700"
+                onClick={() => void handleLoadMoreOrders()}
+                disabled={isLoadingMoreOrders}
+                className="px-4 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold text-stone-700"
               >
-                আরও অর্ডার দেখুন · {paginatedOrders.length}/{filteredOrders.length}
+                {isLoadingMoreOrders ? 'অর্ডার লোড হচ্ছে...' : 'আরও অর্ডার দেখুন · ' + orders.length + '/' + orderStats.total}
               </button>
             </div>
           )}
