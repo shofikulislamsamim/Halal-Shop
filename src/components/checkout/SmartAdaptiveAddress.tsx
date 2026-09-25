@@ -245,8 +245,14 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             জেলা / শহর <span className="text-rose-500">*</span>
           </label>
           <select
-            value={address.district}
-            onChange={(e) => handleDistrictChange(e.target.value)}
+            value={isCustomDistrict ? '__custom__' : address.district}
+            onChange={(e) => {
+              if (e.target.value === '__custom__') {
+                handleFieldChange('district', '');
+                return;
+              }
+              handleDistrictChange(e.target.value);
+            }}
             className="w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
             id="address-district-select"
           >
@@ -255,7 +261,18 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
                 {dist.nameBn}
               </option>
             ))}
+            <option value="__custom__">অন্যান্য জেলা — নিজে লিখুন</option>
           </select>
+          {(isCustomDistrict || !address.district) && (
+            <input
+              type="text"
+              value={address.district}
+              onChange={(e) => handleFieldChange('district', e.target.value)}
+              placeholder="জেলার নাম লিখুন"
+              className="w-full mt-1.5 bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+              id="address-custom-district-input"
+            />
+          )}
         </div>
       </div>
 
