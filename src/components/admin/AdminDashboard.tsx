@@ -201,6 +201,8 @@ export const AdminDashboard: React.FC = () => {
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [orderPage, setOrderPage] = useState(1);
+  const ORDERS_PER_PAGE = 20;
 
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -427,6 +429,13 @@ export const AdminDashboard: React.FC = () => {
       const bTime = new Date(b.createdAt).getTime();
       return orderSort === 'oldest' ? aTime - bTime : bTime - aTime;
     });
+
+  const paginatedOrders = filteredOrders.slice(0, orderPage * ORDERS_PER_PAGE);
+  const hasMoreOrders = paginatedOrders.length < filteredOrders.length;
+
+  useEffect(() => {
+    setOrderPage(1);
+  }, [orderStatusFilter, orderSearchQuery, orderDateFilter, orderSort]);
 
   const filteredProducts = products.filter((product) => {
     if (productStatusFilter === 'active' && !product.isActive) return false;
@@ -973,7 +982,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredOrders.map((order) => {
+              {paginatedOrders.map((order) => {
                 const nextStatuses = getNextOrderStatuses(order.status);
                 const statusClass =
                   order.status === 'pending' ? 'bg-amber-50 text-amber-800 border-amber-200' :
@@ -1041,6 +1050,17 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 );
               })}
+            </div>
+          )}
+          {hasMoreOrders && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => setOrderPage((page) => page + 1)}
+                className="px-4 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-bold text-stone-700"
+              >
+                আরও অর্ডার দেখুন · {paginatedOrders.length}/{filteredOrders.length}
+              </button>
             </div>
           )}
         </div>
