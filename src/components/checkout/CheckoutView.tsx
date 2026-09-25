@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { StructuredAddress, OrderItem } from '../../types';
 import { SmartAdaptiveAddress } from './SmartAdaptiveAddress';
