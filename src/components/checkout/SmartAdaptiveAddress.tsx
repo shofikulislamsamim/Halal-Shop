@@ -28,6 +28,7 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
+  const [customArea, setCustomArea] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -199,10 +200,13 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
   };
 
   const handleAreaChange = (value: string) => {
-    updateAddress({
-      area: value,
-      union: value,
-    });
+    if (value === '__other__') {
+      setCustomArea('');
+      updateAddress({ area: '', union: '' });
+      return;
+    }
+    setCustomArea('');
+    updateAddress({ area: value, union: value });
   };
 
   const isDhakaDistrict = Boolean(currentDistrictObj?.isDhakaCity);
@@ -362,14 +366,16 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
             />
           )}
 
-          {address.area === '__other__' && (
+          {address.upazilaThana && availableAreas.length > 0 && !address.area && (
             <input
               type="text"
-              value=""
-              onChange={(e) => handleAreaChange(e.target.value)}
-              placeholder="আপনার এলাকার নাম লিখুন"
+              value={customArea}
+              onChange={(e) => {
+                setCustomArea(e.target.value);
+                updateAddress({ area: e.target.value, union: e.target.value });
+              }}
+              placeholder="তালিকায় না থাকলে আপনার এলাকার নাম লিখুন"
               className="mt-2 w-full bg-white text-stone-800 text-xs sm:text-sm px-3 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
-              autoFocus
             />
           )}
         </div>
