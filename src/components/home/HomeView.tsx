@@ -13,90 +13,49 @@ export const HomeView: React.FC = () => {
   const featuredProducts = products.filter((p) => p.isFeatured && p.isActive).slice(0, 8);
   const popularProducts = products.filter((p) => p.isPopular && p.isActive).slice(0, 4);
 
+  const SectionHeading = ({ icon, title, subtitle }: {
+    icon: React.ReactNode; title: string; subtitle: string;
+  }) => (
+    <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6">
+      <div className="flex items-start gap-2.5 sm:gap-3 min-w-0">
+        <div className="mt-0.5 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center justify-center shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-2xl font-extrabold text-stone-900 leading-snug">{title}</h2>
+          <p className="text-stone-500 text-xs sm:text-sm mt-0.5">{subtitle}</p>
+        </div>
+      </div>
+      <button onClick={() => navigateTo('products')} className="shrink-0 text-xs sm:text-sm font-bold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 hover:bg-emerald-50 transition-colors">
+        <span>সব দেখুন</span><ArrowRight className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+
   return (
     <div className="pb-16">
-      {/* 1. Hero Section */}
       <HeroSection />
-
-      {/* 2. Compact Trust Points Strip */}
       <TrustSection />
-
-      {/* 3. Categories Section */}
       <CategorySection />
 
-      {/* 4. Featured Products Section */}
-      <section className="py-6 sm:py-8 max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-2xl font-bold text-stone-900 leading-snug">
-                নির্বাচিত পণ্য সমূহ (Featured)
-              </h2>
-              <p className="text-stone-500 text-xs sm:text-sm mt-0.5">
-                গ্রাহকদের সর্বাধিক পছন্দের স্পেশাল কালেকশন
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => navigateTo('products')}
-            className="text-xs sm:text-sm font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 group py-1"
-            id="view-all-featured-btn"
-          >
-            <span>সব দেখুন</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-        </div>
-
-        {/* 2-column mobile grid, 4-column desktop */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      </section>
-
-      {/* 5. Popular Products Section */}
-      {popularProducts.length > 0 && (
-        <section className="py-6 sm:py-8 max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-100 text-rose-900 flex items-center justify-center">
-                <Flame className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-2xl font-bold text-stone-900 leading-snug">
-                  জনপ্রিয় পণ্য (Popular)
-                </h2>
-                <p className="text-stone-500 text-xs sm:text-sm mt-0.5">
-                  সবচেয়ে বেশি অর্ডার করা পণ্য সমূহ
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => navigateTo('products')}
-              className="text-xs sm:text-sm font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 group py-1"
-              id="view-all-popular-btn"
-            >
-              <span>সব দেখুন</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
-
-          {/* 2-column mobile grid, 4-column desktop */}
+      {featuredProducts.length > 0 && (
+        <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <SectionHeading icon={<Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />} title="নির্বাচিত পণ্য" subtitle="গ্রাহকদের জন্য বাছাই করা বিশেষ কালেকশন" />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
-            {popularProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {featuredProducts.map((product) => <ProductCard key={product.id} product={product} />)}
           </div>
         </section>
       )}
 
-      {/* 6. Why Shop With Us Trust Points */}
+      {popularProducts.length > 0 && (
+        <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <SectionHeading icon={<Flame className="w-4 h-4 sm:w-5 sm:h-5 text-rose-700" />} title="জনপ্রিয় পণ্য" subtitle="গ্রাহকদের পছন্দের পণ্যগুলো একসাথে" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
+            {popularProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+          </div>
+        </section>
+      )}
+
       <WhyShopWithUs />
     </div>
   );
