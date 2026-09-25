@@ -1085,29 +1085,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleCategoryStatus = async (id: string): Promise<boolean> => {
     const currentCategory = categories.find((c) => c.id === id);
-    if (!currentCategory) return;
+    if (!currentCategory) return false;
     const newStatus = !currentCategory.isActive;
     const updatedAt = new Date().toISOString();
     const nextCategory = { ...currentCategory, isActive: newStatus, updatedAt };
-    setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
 
-    void (async () => {
-      try {
-        const token = getSupabaseAccessToken();
-        if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
-        await supabaseFetch(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`, {
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>(
+        `/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`,
+        {
           method: 'PATCH',
           token,
+          headers: { Prefer: 'return=representation' },
           body: { is_active: newStatus, updated_at: updatedAt },
-        });
-      } catch (error) {
-        console.error('Category status update failed:', error);
-        setCategories((prev) => prev.map((c) => (c.id === id ? currentCategory : c)));
-        showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি।');
+        }
+      );
+      if (!Array.isArray(remote) || remote.length !== 1) {
+        throw new Error('Category status update affected no row.');
       }
-    })();
-
-    showToast(`"${currentCategory.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
+      setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
+      showToast(`"${currentCategory.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
+      return true;
+    } catch (error) {
+      console.error('Category status update failed:', error);
+      showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return false;
+    }
   };
 
   // Settings update
