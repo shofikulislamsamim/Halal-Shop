@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { Product, Category, Order, OrderStatus, ShopSettings } from '../../types';
+import type { OrderStatusHistoryEntry } from '../../context/ShopContext';
 import { formatPrice } from '../../utils/helpers';
 import { supabaseSendPasswordResetEmail, supabaseUpdatePassword } from '../../lib/supabase';
 import {
@@ -54,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
     reorderCategory,
     updateOrderStatus,
     refreshOrders,
+    getOrderStatusHistory,
     updateSettings,
     showToast,
   } = useShop();
@@ -199,6 +201,8 @@ export const AdminDashboard: React.FC = () => {
   const [orderDateFilter, setOrderDateFilter] = useState<'all' | 'today' | 'yesterday' | '7days' | '30days'>('all');
   const [orderSort, setOrderSort] = useState<'newest' | 'oldest' | 'pending'>('newest');
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [viewingOrderHistory, setViewingOrderHistory] = useState<OrderStatusHistoryEntry[]>([]);
+  const [isLoadingOrderHistory, setIsLoadingOrderHistory] = useState(false);
   const [isOrderFilterOpen, setIsOrderFilterOpen] = useState(false);
   const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
@@ -1015,7 +1019,12 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setViewingOrder(order)}
+                          onClick={() => {
+                            setViewingOrder(order);
+                            setViewingOrderHistory([]);
+                            setIsLoadingOrderHistory(true);
+                            void getOrderStatusHistory(order.id).then(setViewingOrderHistory).finally(() => setIsLoadingOrderHistory(false));
+                          }}
                           className="px-3 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold flex items-center gap-1.5"
                         >
                           <Eye className="w-3.5 h-3.5" /> বিস্তারিত
@@ -1637,6 +1646,36 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex justify-between"><span className="text-stone-500">পণ্যের মোট</span><strong>{formatPrice(viewingOrder.subtotal)}</strong></div>
                 <div className="flex justify-between"><span className="text-stone-500">ডেলিভারি চার্জ</span><strong>{formatPrice(viewingOrder.deliveryCharge)}</strong></div>
                 <div className="flex justify-between pt-2 border-t border-stone-200 text-sm"><span className="font-bold">সর্বমোট</span><strong className="text-emerald-800">{formatPrice(viewingOrder.total)}</strong></div>
+              </div>
+
+              <div className="border border-stone-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-black text-sm text-stone-900 flex items-center gap-2"><Truck className="w-4 h-4 text-emerald-700" /> ট্র্যাকিং টাইমলাইন</h4>
+                  {isLoadingOrderHistory && <span className="text-[10px] text-stone-400">লোড হচ্ছে...</span>}
+                </div>
+                {viewingOrderHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {viewingOrderHistory.map((entry, index) => {
+                      const isLast = index === viewingOrderHistory.length - 1;
+                      return (
+                        <div key={entry.changedAt + entry.status} className="flex gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={'w-8 h-8 rounded-full flex items-center justify-center ' + (isLast ? 'bg-emerald-700 text-white' : 'bg-emerald-50 text-emerald-700')}>
+                              {entry.status === 'shipped' ? <Truck className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                            </div>
+                            {!isLast && <div className="w-px h-6 bg-stone-200 mt-1" />}
+                          </div>
+                          <div className="pb-1">
+                            <p className="text-xs font-bold text-stone-900">{orderStatusLabels[entry.status]}</p>
+                            <p className="text-[11px] text-stone-500 mt-0.5">{new Date(entry.changedAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-500">{isLoadingOrderHistory ? 'অর্ডারের ট্র্যাকিং ইতিহাস আনা হচ্ছে...' : 'কোনো ট্র্যাকিং ইতিহাস পাওয়া যায়নি।'}</p>
+                )}
               </div>
 
               <div className="border border-stone-200 rounded-2xl p-4">
