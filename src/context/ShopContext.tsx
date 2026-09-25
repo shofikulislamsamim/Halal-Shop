@@ -645,7 +645,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       if (!Array.isArray(remoteOrders)) throw new Error('Orders reload failed.');
       setOrders(remoteOrders.map(mapRemoteOrder));
-      return updatedStatus;
+      return true;
     } catch (error) {
       console.error('Supabase orders refresh failed:', error);
       showToast('অর্ডারের সর্বশেষ তথ্য আনা যায়নি। আবার চেষ্টা করুন।');
