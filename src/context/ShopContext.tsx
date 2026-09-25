@@ -648,15 +648,34 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : order
       )));
       if (status === 'cancelled') {
-        const cancelledItems = current.items || [];
-        const restoreByProduct = new Map<string, number>();
-        cancelledItems.forEach((item) => {
-          restoreByProduct.set(item.productId, (restoreByProduct.get(item.productId) || 0) + Math.max(0, Math.floor(item.quantity)));
-        });
-        setProducts((prev) => prev.map((product) => {
-          const restore = restoreByProduct.get(product.id);
-          return restore ? { ...product, stock: product.stock + restore } : product;
-        }));
+        // Cancellation restores stock inside the database transaction. Reload
+        // authoritative product rows instead of incrementing local stock,
+        // which could overwrite a concurrent inventory change.
+        const remoteProducts = await supabaseFetch<any[]>(
+          '/rest/v1/halal_products?select=*&order=created_at.desc',
+          { token }
+        );
+        if (!Array.isArray(remoteProducts)) throw new Error('Inventory reload failed after cancellation.');
+        setProducts(remoteProducts.map((product) => ({
+          id: product.id,
+          nameBn: product.name_bn,
+          slug: product.slug || undefined,
+          nameEn: product.name_en || '',
+          categoryId: product.category_id || '',
+          categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
+          price: Number(product.price || 0),
+          regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
+          stock: Number(product.stock || 0),
+          imageUrl: product.image_url || '',
+          descriptionBn: product.description || '',
+          specifications: Object.entries(product.specs || {}).map(([label, value]) => ({
+            label,
+            value: String(value ?? ''),
+          })),
+          isFeatured: product.is_featured === true,
+          isPopular: product.is_popular === true,
+          isActive: product.is_active !== false,
+        })));
       }
       showToast(`অর্ডার #${orderId} এর স্ট্যাটাস পরিবর্তন করা হয়েছে`);
       return true;
