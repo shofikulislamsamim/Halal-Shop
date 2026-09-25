@@ -338,10 +338,11 @@ export async function loadCompleteBangladeshLocations(): Promise<CompleteBdLocat
       throw new Error(`Location data request failed: ${response.status}`);
     }
 
-    const source: unknown = await response.json();
-    if (!Array.isArray(source)) {
+    const parsed: unknown = await response.json();
+    if (!Array.isArray(parsed)) {
       throw new Error('Invalid Bangladesh location data format');
     }
+    const source: any[] = parsed;
 
     const divisions: BdDivision[] = [];
     const districts: BdDistrict[] = [];
