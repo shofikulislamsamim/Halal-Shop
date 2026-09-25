@@ -228,16 +228,6 @@ export const MobileBottomNav: React.FC = () => {
                 <span>আমাদের সম্পর্কে</span>
               </button>
 
-              <button
-                onClick={() => {
-                  navigateTo('admin');
-                  setMenuDrawerOpen(false);
-                }}
-                className="p-3 rounded-xl bg-stone-50 hover:bg-emerald-50 text-stone-800 text-left flex items-center gap-2 border border-stone-200/70"
-              >
-                <Lock className="w-4 h-4 text-amber-700" />
-                <span>{isAdminAuthenticated ? 'এডমিন ড্যাশবোর্ড' : 'এডমিন লগইন'}</span>
-              </button>
             </div>
 
             {/* Direct WhatsApp Callout */}
