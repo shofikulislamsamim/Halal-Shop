@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { Order, OrderStatus } from '../../types';
+import type { OrderStatusHistoryEntry } from '../../context/ShopContext';
 import { formatPrice, getWhatsAppUrl } from '../../utils/helpers';
 import {
   Truck,
@@ -24,7 +25,7 @@ const STATUS_STEPS: { key: OrderStatus; label: string; desc: string }[] = [
 ];
 
 export const OrderTrackingView: React.FC = () => {
-  const { getOrderByIdAndPhone, lastCreatedOrder, settings } = useShop();
+  const { getOrderByIdAndPhone, getOrderStatusHistory, lastCreatedOrder, settings } = useShop();
 
   const [orderId, setOrderId] = useState(lastCreatedOrder?.id || '');
   const [mobile, setMobile] = useState(lastCreatedOrder?.mobile || '');
@@ -33,6 +34,7 @@ export const OrderTrackingView: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState('');
 
   const [isSearching, setIsSearching] = useState(false);
+  const [statusHistory, setStatusHistory] = useState<OrderStatusHistoryEntry[]>([]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +48,11 @@ export const OrderTrackingView: React.FC = () => {
     const found = await getOrderByIdAndPhone(orderId.trim(), mobile.trim());
     setSearchedOrder(found || null);
     setHasSearched(true);
+    if (found) {
+      setStatusHistory(await getOrderStatusHistory(found.id, found.mobile));
+    } else {
+      setStatusHistory([]);
+    }
     setIsSearching(false);
 
     if (!found) {
@@ -66,6 +73,11 @@ export const OrderTrackingView: React.FC = () => {
   };
 
   const currentStepIndex = searchedOrder ? getStepIndex(searchedOrder.status) : 0;
+
+  React.useEffect(() => {
+    if (!searchedOrder) return;
+    void getOrderStatusHistory(searchedOrder.id, searchedOrder.mobile).then(setStatusHistory);
+  }, [searchedOrder?.id, searchedOrder?.mobile]);
   const isCancelled = searchedOrder?.status === 'cancelled';
 
   const whatsAppUrl = searchedOrder
@@ -249,6 +261,43 @@ export const OrderTrackingView: React.FC = () => {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tracking history */}
+          {statusHistory.length > 0 && (
+            <div className="border-t border-stone-100 pt-6">
+              <h3 className="text-sm font-bold text-stone-900 mb-4 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-emerald-700" />
+                অর্ডার ট্র্যাকিং ইতিহাস
+              </h3>
+              <div className="space-y-3">
+                {statusHistory.map((entry, index) => {
+                  const isLast = index === statusHistory.length - 1;
+                  const label = entry.status === 'pending' ? 'অর্ডার গ্রহণ করা হয়েছে'
+                    : entry.status === 'confirmed' ? 'অর্ডার নিশ্চিত করা হয়েছে'
+                    : entry.status === 'processing' ? 'অর্ডার প্রসেসিং শুরু হয়েছে'
+                    : entry.status === 'shipped' ? 'অর্ডার ডেলিভারির জন্য পাঠানো হয়েছে'
+                    : entry.status === 'delivered' ? 'অর্ডার ডেলিভারি সম্পন্ন হয়েছে'
+                    : 'অর্ডার বাতিল করা হয়েছে';
+                  return (
+                    <div key={entry.changedAt + entry.status} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div className={'w-8 h-8 rounded-full flex items-center justify-center ' + (isLast ? 'bg-emerald-700 text-white' : 'bg-emerald-50 text-emerald-700')}>
+                          {entry.status === 'shipped' ? <Truck className="w-4 h-4" /> : entry.status === 'delivered' ? <CheckCircle2 className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                        </div>
+                        {index < statusHistory.length - 1 && <div className="w-px flex-1 bg-stone-200 mt-1" />}
+                      </div>
+                      <div className="pb-3">
+                        <p className="text-xs font-bold text-stone-900">{label}</p>
+                        <p className="text-[11px] text-stone-500 mt-0.5">
+                          {new Date(entry.changedAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
