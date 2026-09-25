@@ -116,7 +116,7 @@ export const MobileBottomNav: React.FC = () => {
             id="mobile-nav-orders"
           >
             <PackageCheck className="w-5 h-5 mb-0.5" />
-            <span className="text-[10px] leading-tight">অর্ডার</span>
+            <span className="text-[10px] leading-tight">আমার অর্ডার</span>
           </button>
 
           {/* 5. Menu / More */}
@@ -201,7 +201,7 @@ export const MobileBottomNav: React.FC = () => {
                 className="p-3 rounded-xl bg-stone-50 hover:bg-emerald-50 text-stone-800 text-left flex items-center gap-2 border border-stone-200/70"
               >
                 <Truck className="w-4 h-4 text-emerald-700" />
-                <span>অর্ডার ট্র্যাকিং</span>
+                <span>অর্ডার ডিটেইলস ও ট্র্যাকিং</span>
               </button>
 
               <button
