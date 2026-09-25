@@ -49,6 +49,7 @@ interface ShopContextType {
   getCategoryWithDescendants: (categoryId: string) => string[];
   addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<boolean>;
+  adjustProductStock: (productId: string, delta: number) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
@@ -1033,6 +1034,29 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Category status update failed:', error);
       showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি। পরিবর্তনটি রাখা হয়নি।');
+      return false;
+    }
+  };
+
+  const adjustProductStock = async (productId: string, delta: number): Promise<boolean> => {
+    if (!Number.isInteger(delta) || delta === 0) return false;
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_stock', {
+        method: 'POST',
+        token,
+        body: { p_product_id: productId, p_delta: delta },
+      });
+      const nextStock = Number(remote?.stock);
+      if (!Number.isFinite(nextStock) || nextStock < 0) throw new Error('Invalid stock response.');
+      setProducts((prev) => prev.map((product) =>
+        product.id === productId ? { ...product, stock: nextStock } : product
+      ));
+      return true;
+    } catch (error) {
+      console.error('Inventory adjustment failed:', error);
+      showToast('স্টক আপডেট করা যায়নি। বর্তমান স্টক অপরিবর্তিত রাখা হয়েছে।');
       return false;
     }
   };
