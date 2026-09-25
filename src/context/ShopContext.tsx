@@ -687,7 +687,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       showToast('অর্ডার #' + orderId + ' এর স্ট্যাটাস ' + orderStatusLabelForToast(updatedStatus) + ' করা হয়েছে');
-      return true;
+      return updatedStatus;
     } catch (error) {
       console.error('Order status update failed:', error);
       const raw = error instanceof Error ? error.message : '';
