@@ -485,10 +485,10 @@ export const AdminDashboard: React.FC = () => {
     if (updatingOrderId) return;
     setUpdatingOrderId(orderId);
     try {
-      const success = await updateOrderStatus(orderId, status);
-      if (success) {
+      const updatedStatus = await updateOrderStatus(orderId, status);
+      if (updatedStatus) {
         setViewingOrder((current) =>
-          current?.id === orderId ? { ...current, status } : current
+          current?.id === orderId ? { ...current, status: updatedStatus } : current
         );
       }
     } finally {
