@@ -19,8 +19,8 @@ export const HeroSection: React.FC = () => {
               <span>বিশ্বস্ত হালাল পণ্যের অনলাইন শপ</span>
             </div>
             <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.2]">
-              বিশ্বস্ত পণ্য,
-              <span className="block text-amber-300">সহজে কেনাকাটা</span>
+              Halal Shop
+              <span className="block text-amber-300">বিশ্বস্ত হালাল পণ্যের অনলাইন শপ</span>
             </h1>
             <p className="mt-4 max-w-2xl mx-auto lg:mx-0 text-sm sm:text-base text-emerald-50/85 leading-7">
               {settings.heroSubtitle || 'খাঁটি মধু, কালোজিরা, ইসলামিক বই ও প্রয়োজনীয় হালাল পণ্য পৌঁছে যাবে আপনার ঠিকানায়।'}
