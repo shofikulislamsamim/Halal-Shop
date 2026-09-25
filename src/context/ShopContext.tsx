@@ -502,30 +502,39 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
   // Place Order
-  const mapRemoteOrder = (remote: any): Order => ({
-    id: remote.order_code,
-    createdAt: remote.created_at,
-    customerName: remote.customer_name,
-    mobile: remote.mobile,
-    altMobile: remote.alt_mobile || undefined,
-    address: remote.address as Order['address'],
-    items: Array.isArray(remote.halal_order_items)
-      ? remote.halal_order_items.map((item: any) => ({
-          productId: item.product_id,
-          nameBn: item.product_name,
-          price: Number(item.unit_price || 0),
-          quantity: Number(item.quantity || 0),
-          total: Number(item.subtotal || 0),
-          imageUrl: item.image_url || '',
-        }))
-      : [],
-    subtotal: Number(remote.subtotal || 0),
-    deliveryCharge: Number(remote.delivery_fee || 0),
-    total: Number(remote.total || 0),
-    paymentMethod: 'cash_on_delivery',
-    status: remote.status as OrderStatus,
-    orderNote: remote.order_note || undefined,
-  });
+  const mapRemoteOrder = (remote: any): Order => {
+    // The order-creation RPC returns its items under `items`, while the
+    // admin REST query returns them as `halal_order_items`. Support both
+    // shapes so the confirmation/tracking views never lose the item list.
+    const remoteItems = Array.isArray(remote.halal_order_items)
+      ? remote.halal_order_items
+      : Array.isArray(remote.items)
+        ? remote.items
+        : [];
+
+    return {
+      id: remote.order_code,
+      createdAt: remote.created_at,
+      customerName: remote.customer_name,
+      mobile: remote.mobile,
+      altMobile: remote.alt_mobile || undefined,
+      address: remote.address as Order['address'],
+      items: remoteItems.map((item: any) => ({
+        productId: item.product_id,
+        nameBn: item.product_name,
+        price: Number(item.unit_price || 0),
+        quantity: Number(item.quantity || 0),
+        total: Number(item.subtotal || 0),
+        imageUrl: item.image_url || '',
+      })),
+      subtotal: Number(remote.subtotal || 0),
+      deliveryCharge: Number(remote.delivery_fee || 0),
+      total: Number(remote.total || 0),
+      paymentMethod: 'cash_on_delivery',
+      status: remote.status as OrderStatus,
+      orderNote: remote.order_note || undefined,
+    };
+  };
 
   const placeOrder = async (orderData: {
     customerName: string;
