@@ -225,6 +225,23 @@ export const AdminDashboard: React.FC = () => {
     setSettingsForm(settings);
   }, [settings]);
 
+  // Keep the open order-details modal synchronized with the authoritative
+  // order list. This prevents stale status/customer/order data when the list
+  // is refreshed or another session changes the same order.
+  useEffect(() => {
+    if (!viewingOrder) return;
+    const latestOrder = orders.find((order) => order.id === viewingOrder.id);
+    if (!latestOrder) {
+      setViewingOrder(null);
+      return;
+    }
+
+    setViewingOrder((current) => {
+      if (!current || current.id !== latestOrder.id) return current;
+      return current === latestOrder ? current : latestOrder;
+    });
+  }, [orders, viewingOrder?.id]);
+
   // Recursive category helpers — supports unlimited nesting.
   const categoryMatchesSearch = (category: Category): boolean => {
     const q = categorySearchQuery.trim().toLowerCase();
