@@ -38,7 +38,6 @@ export const SmartAdaptiveAddress: React.FC<SmartAdaptiveAddressProps> = ({
     : [];
 
   const isCustomDistrict =
-    Boolean(address.district) &&
     !availableDistricts.some((district) => district.nameBn === address.district);
 
   // Handle location search typing
