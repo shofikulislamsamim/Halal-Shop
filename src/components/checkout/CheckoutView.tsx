@@ -84,6 +84,7 @@ export const CheckoutView: React.FC = () => {
   const [nameError, setNameError] = useState('');
   const [addressIncompleteError, setAddressIncompleteError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const orderIdempotencyKeyRef = useRef<string | null>(null);
   const [submitError, setSubmitError] = useState('');
 
   // Delivery charge calculation
@@ -181,6 +182,11 @@ export const CheckoutView: React.FC = () => {
 
     setIsSubmitting(true);
     setSubmitError('');
+    if (!orderIdempotencyKeyRef.current) {
+      orderIdempotencyKeyRef.current = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `order-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
 
     const finalAddress = {
       ...address,
@@ -198,7 +204,9 @@ export const CheckoutView: React.FC = () => {
         deliveryCharge,
         total: totalAmount,
         orderNote: orderNote.trim() || undefined,
+        idempotencyKey: orderIdempotencyKeyRef.current || undefined,
       });
+      orderIdempotencyKeyRef.current = null;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'অর্ডার সংরক্ষণ করা যায়নি।';
       setSubmitError(message);
