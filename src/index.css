@@ -3,7 +3,6 @@
 @theme {
   --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-bengali: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
-
   --color-halal-primary: #064E3B;
   --color-halal-secondary: #065F46;
   --color-halal-cream: #FEFCE8;
@@ -24,47 +23,72 @@
   }
 
   body {
-    font-family: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    min-width: 320px;
+    font-family: inherit;
     line-height: 1.6;
     font-weight: 400;
+    background: #FAFAF7;
   }
 
-  /* Bengali Heading Typography: Prevent vowel signs and matras from overlapping */
-  h1 {
-    line-height: 1.3;
-    letter-spacing: -0.01em;
-  }
+  h1 { line-height: 1.3; letter-spacing: -0.01em; }
+  h2 { line-height: 1.35; letter-spacing: -0.005em; }
+  h3, h4, h5, h6 { line-height: 1.4; letter-spacing: normal; }
+  p { line-height: 1.65; }
 
-  h2 {
-    line-height: 1.35;
-    letter-spacing: -0.005em;
-  }
-
-  h3, h4, h5, h6 {
-    line-height: 1.4;
-    letter-spacing: normal;
-  }
-
-  p {
-    line-height: 1.65;
-  }
-
-  /* Form controls and interactive elements */
   button, input, select, textarea {
     font-family: inherit;
     line-height: inherit;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* Numeric & Price formatting clarity */
 .price-display {
   font-family: 'Plus Jakarta Sans', 'Noto Sans Bengali', sans-serif;
   font-feature-settings: 'tnum' 1;
 }
 
-/* Safe area inset for mobile navigation */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #FAFAF7;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(200, 169, 81, 0.45);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #D1FAE5;
+  color: #064E3B;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
