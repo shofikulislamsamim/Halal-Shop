@@ -94,10 +94,10 @@ export const OrderTrackingView: React.FC = () => {
           <Truck className="w-7 h-7" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 leading-snug">
-          অর্ডার ট্র্যাকিং (Order Tracking)
+          অর্ডার ডিটেইলস ও ট্র্যাকিং
         </h1>
         <p className="text-stone-600 text-xs sm:text-sm mt-1">
-          আপনার অর্ডার আইডি এবং মোবাইল নাম্বার দিয়ে যেকোনো সময় অর্ডারের অবস্থা জানুন
+          অর্ডার আইডি ও মোবাইল নাম্বার দিয়ে অর্ডারের বিস্তারিত তথ্য দেখুন এবং ডেলিভারি অগ্রগতি ট্র্যাক করুন
         </p>
       </div>
 
@@ -166,7 +166,7 @@ export const OrderTrackingView: React.FC = () => {
               <span className="text-xs text-stone-400 mt-0.5 block flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
                 <span>
-                  তারিখ: {new Date(searchedOrder.createdAt).toLocaleDateString('bn-BD', {
+                  অর্ডার করা: {new Date(searchedOrder.createdAt).toLocaleString('bn-BD', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',
