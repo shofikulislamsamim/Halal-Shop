@@ -9,7 +9,6 @@ import {
   X,
   Phone,
   MessageCircle,
-  Lock,
   Info,
   Truck,
   ExternalLink,
