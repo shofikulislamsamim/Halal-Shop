@@ -794,7 +794,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return getAllCategoryAndDescendantIds(categoryId, categories);
   };
 
-  const addCategory = (categoryData: Omit<Category, 'id'>) => {
+  const addCategory = async (categoryData: Omit<Category, 'id'>) => {
     const parentId = categoryData.parentId ? categoryData.parentId : null;
 
     // Check duplicate name under same parent
@@ -864,7 +864,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true, category: newCategory };
   };
 
-  const updateCategory = (id: string, updated: Partial<Category>) => {
+  const updateCategory = async (id: string, updated: Partial<Category>) => {
     // 1. Circular parent validation
     if (updated.parentId !== undefined) {
       const targetParentId = updated.parentId ? updated.parentId : null;
@@ -929,9 +929,26 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: new Date().toISOString(),
     };
 
-    setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any[]>(`/rest/v1/halal_categories?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        token,
+        headers: { Prefer: 'return=representation' },
+        body: { is_active: newStatus, updated_at: updatedAt },
+      });
+      if (!Array.isArray(remote) || remote.length !== 1) throw new Error('Category status update affected no row.');
+      setCategories((prev) => prev.map((c) => (c.id === id ? nextCategory : c)));
+      showToast(`"${currentCategory.nameBn}" ক্যাটাগরি ${newStatus ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে`);
+      return true;
+    } catch (error) {
+      console.error('Category status update failed:', error);
+      showToast('ক্যাটাগরির স্ট্যাটাস সংরক্ষণ করা যায়নি।');
+      return false;
+    }
 
-    void (async () => {
+    /* void (async () => {
       try {
         const token = getSupabaseAccessToken();
         if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
@@ -961,7 +978,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const deleteCategory = (id: string) => {
+  const deleteCategory = async (id: string) => {
     const target = categories.find((c) => c.id === id);
     if (!target) return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
 
@@ -991,7 +1008,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
-  const moveCategory = (id: string, newParentId: string | null) => {
+  const moveCategory = async (id: string, newParentId: string | null) => {
     const target = categories.find((category) => category.id === id);
     if (!target) return { success: false, message: 'ক্যাটাগরি পাওয়া যায়নি' };
 
@@ -1066,7 +1083,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   };
 
-  const toggleCategoryStatus = (id: string) => {
+  const toggleCategoryStatus = async (id: string): Promise<boolean> => {
     const currentCategory = categories.find((c) => c.id === id);
     if (!currentCategory) return;
     const newStatus = !currentCategory.isActive;
