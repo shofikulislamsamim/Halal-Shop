@@ -955,6 +955,127 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* ========================================================= */}
+      {/* 2. PRODUCTS TAB */}
+      {/* ========================================================= */}
+      {activeTab === 'products' && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-stone-200 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="search"
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  placeholder="পণ্যের নাম, স্লাগ বা ক্যাটাগরি দিয়ে খুঁজুন..."
+                  className="w-full bg-stone-50 text-stone-900 text-xs sm:text-sm pl-9 pr-9 py-2.5 rounded-xl border border-stone-300 focus:outline-hidden focus:border-emerald-600"
+                  aria-label="পণ্য খুঁজুন"
+                />
+                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                {productSearchQuery && (
+                  <button type="button" onClick={() => setProductSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-1" aria-label="পণ্য সার্চ পরিষ্কার করুন">✕</button>
+                )}
+              </div>
+              <select
+                value={productStatusFilter}
+                onChange={(e) => setProductStatusFilter(e.target.value as typeof productStatusFilter)}
+                className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300"
+                aria-label="পণ্য স্ট্যাটাস ফিল্টার"
+              >
+                <option value="all">সব পণ্য</option>
+                <option value="active">সক্রিয়</option>
+                <option value="inactive">আর্কাইভ করা</option>
+              </select>
+              <select
+                value={productCategoryFilter}
+                onChange={(e) => setProductCategoryFilter(e.target.value)}
+                className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300"
+                aria-label="পণ্য ক্যাটাগরি ফিল্টার"
+              >
+                <option value="all">সব ক্যাটাগরি</option>
+                {categories.map((category) => <option key={category.id} value={category.id}>{category.nameBn}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-500">
+              <span>মোট: {products.length}</span>
+              <span>·</span>
+              <span>সক্রিয়: {products.filter((p) => p.isActive).length}</span>
+              <span>·</span>
+              <span>আর্কাইভ: {products.filter((p) => !p.isActive).length}</span>
+            </div>
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center text-sm text-stone-500">
+              এই ফিল্টারে কোনো পণ্য পাওয়া যায়নি।
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredProducts.map((product) => {
+                const category = categories.find((cat) => cat.id === product.categoryId);
+                return (
+                  <div key={product.id} className={'bg-white rounded-2xl border p-3 shadow-2xs ' + (product.isActive ? 'border-stone-200' : 'border-amber-200 bg-amber-50/30')}>
+                    <div className="flex gap-3">
+                      <img src={product.imageUrl} alt={product.nameBn} className="w-20 h-20 rounded-xl object-cover bg-stone-100 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-bold text-stone-900 text-sm truncate">{product.nameBn}</h3>
+                            <p className="text-[11px] text-stone-400 truncate">{product.nameEn || '—'}</p>
+                          </div>
+                          <span className={'shrink-0 px-2 py-1 rounded-full text-[10px] font-bold ' + (product.isActive ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-100 text-amber-800')}>
+                            {product.isActive ? 'সক্রিয়' : 'আর্কাইভ'}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-stone-500">{category?.nameBn || 'ক্যাটাগরি নেই'} · স্টক {product.stock}</div>
+                        <div className="mt-1 font-black text-emerald-800">{formatPrice(product.price)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setEditingProduct(product); setIsProductModalOpen(true); }}
+                        className="px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 text-[11px] font-bold flex items-center gap-1"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> সম্পাদনা
+                      </button>
+                      {product.isActive ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('এই পণ্যটি আর্কাইভ করলে এটি কাস্টমারদের কাছে আর দেখাবে না। পুরোনো অর্ডার ইতিহাস অক্ষুণ্ণ থাকবে। চালিয়ে যাবেন?')) {
+                              void deleteProduct(product.id);
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold flex items-center gap-1"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" /> আর্কাইভ
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('এই পণ্যটি আবার সক্রিয় করে কাস্টমারদের জন্য প্রকাশ করবেন?')) {
+                              void (async () => {
+                                const success = await updateProduct(product.id, { isActive: true });
+                                if (success) showToast('পণ্যটি আবার সক্রিয় করা হয়েছে।');
+                              })();
+                            }
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> পুনরায় চালু
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================= */}
       {/* 3. INVENTORY TAB */}
       {/* ========================================================= */}
       {activeTab === 'inventory' && (
