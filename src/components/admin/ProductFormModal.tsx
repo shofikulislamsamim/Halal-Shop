@@ -5,7 +5,7 @@ import { supabaseUploadProductImage } from '../../lib/supabase';
 import { useShop } from '../../context/ShopContext';
 
 type Props = {
-  product: Product;
+  product: Partial<Product>;
   categories: Category[];
   onClose: () => void;
   onSaved: () => void;
@@ -19,6 +19,17 @@ const slugify = (value: string) => value.toLowerCase().trim().replace(/[^\p{L}\p
 export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose, onSaved }) => {
   const { addProduct, updateProduct, products, showToast } = useShop();
   const [form, setForm] = useState<Product>({
+    id: product.id || crypto.randomUUID(),
+    nameBn: product.nameBn || '',
+    nameEn: product.nameEn || '',
+    categoryId: product.categoryId || '',
+    price: product.price ?? 0,
+    stock: product.stock ?? 0,
+    imageUrl: product.imageUrl || '',
+    descriptionBn: product.descriptionBn || '',
+    specifications: product.specifications || [],
+    isFeatured: product.isFeatured ?? false,
+    isActive: product.isActive !== false,
     ...product,
     categoryIds: product.categoryIds || [],
     tags: product.tags || [],
