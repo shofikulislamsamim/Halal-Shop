@@ -1532,6 +1532,19 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: false, message: 'এই অ্যাকাউন্টের অ্যাডমিন অনুমতি নেই।' };
       }
       setSupabaseSession(auth.access_token, auth.refresh_token);
+      // Admin order data must come only from the authoritative server query.
+      // Clear any local/demo order snapshot before AdminDashboard refreshes it.
+      setOrders([]);
+      setOrderStats({
+        total: 0,
+        todayOrders: 0,
+        todayRevenue: 0,
+        totalRevenue: 0,
+        pendingCount: 0,
+        processingCount: 0,
+        deliveredCount: 0,
+        cancelledCount: 0,
+      });
       setIsAdminAuthenticated(true);
       sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
       return { success: true };
