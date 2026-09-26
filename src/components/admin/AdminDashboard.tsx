@@ -67,6 +67,7 @@ export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'inventory' | 'categories' | 'settings'>('orders');
   const [inventoryFilter, setInventoryFilter] = useState<'all' | 'out' | 'low' | 'in'>('all');
   const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   // Login form state
   const [adminEmail, setAdminEmail] = useState('sk82716102@gmail.com');
@@ -435,6 +436,48 @@ export const AdminDashboard: React.FC = () => {
       offset: 0,
     }).finally(() => setIsRefreshingOrders(false));
   }, [isAdminLoggedIn, orderStatusFilter, debouncedOrderSearchQuery, orderDateFilter, orderSort]);
+
+  const toggleProductSelection = (id: string) => {
+    setSelectedProductIds((prev) => prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]);
+  };
+  const toggleAllVisibleProducts = () => {
+    const ids = filteredProducts.map((p) => p.id);
+    setSelectedProductIds((prev) => ids.every((id) => prev.includes(id)) ? prev.filter((id) => !ids.includes(id)) : Array.from(new Set([...prev, ...ids])));
+  };
+  const bulkSetProductStatus = async (active: boolean) => {
+    if (!selectedProductIds.length) return;
+    const count = selectedProductIds.length;
+    for (const id of selectedProductIds) await updateProduct(id, { isActive: active, isDraft: false });
+    setSelectedProductIds([]);
+    showToast(count + 'টি পণ্যের স্ট্যাটাস আপডেট হয়েছে।');
+  };
+  const exportProductsCsv = () => {
+    const headers = ['id','nameBn','nameEn','sku','slug','categoryId','price','regularPrice','stock','unit','brand','manufacturer','originCountry','tags','descriptionBn','descriptionEn','isFeatured','isPopular','isNewArrival','isBestSeller','isSpecialOffer','isLimitedStock','isActive','isDraft'];
+    const rows = products.map((p) => headers.map((h) => JSON.stringify(Array.isArray((p as any)[h]) ? (p as any)[h].join('|') : (p as any)[h] ?? '')).join(','));
+    const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'halal-shop-products.csv'; a.click(); URL.revokeObjectURL(url);
+  };
+  const importProductsCsv = async (file: File) => {
+    try {
+      const text = await file.text(); const lines = text.split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) throw new Error('CSV is empty.');
+      const parse = (line: string) => { const out: string[]=[]; let cur=''; let q=false; for(let i=0;i<line.length;i++){const ch=line[i]; if(ch==='"'){if(q&&line[i+1]==='"'){cur+='"';i++;}else q=!q;}else if(ch===','&&!q){out.push(cur);cur='';}else cur+=ch;} out.push(cur); return out; };
+      const headers = parse(lines[0]).map(h=>h.trim()); let count=0;
+      for (const line of lines.slice(1)) {
+        const vals=parse(line); const row: Record<string,string>={}; headers.forEach((h,i)=>row[h]=vals[i]||'');
+        if(!row.nameBn?.trim()) continue;
+        const ok=await addProduct({
+          nameBn:row.nameBn.trim(), nameEn:row.nameEn||'', sku:row.sku||undefined, slug:row.slug||undefined, categoryId:row.categoryId||categories[0]?.id||'', categoryIds:[],
+          tags:(row.tags||'').split('|').filter(Boolean), price:Number(row.price||0), regularPrice:row.regularPrice?Number(row.regularPrice):undefined, stock:Number(row.stock||0), unit:row.unit||'',
+          brand:row.brand||'', manufacturer:row.manufacturer||'', originCountry:row.originCountry||'', imageUrl:'', galleryUrls:[], shortDescription:'', descriptionBn:row.descriptionBn||'', descriptionEn:row.descriptionEn||'',
+          specifications:[], variants:[], relatedProductIds:[], seoTitle:'', seoDescription:'', seoKeywords:[], isFeatured:row.isFeatured==='true', isPopular:row.isPopular==='true',
+          isNewArrival:row.isNewArrival==='true', isBestSeller:row.isBestSeller==='true', isSpecialOffer:row.isSpecialOffer==='true', isLimitedStock:row.isLimitedStock==='true',
+          isActive:row.isActive!=='false', isDraft:row.isDraft==='true', whatsappEnabled:true, lowStockThreshold:3, minOrderQty:1
+        }); if(ok) count++;
+      }
+      showToast(count+'টি পণ্য CSV থেকে যোগ করা হয়েছে।');
+    } catch(error){ console.error(error); showToast('CSV import করা যায়নি। Header ও format পরীক্ষা করুন।'); }
+  };
 
   const filteredProducts = products.filter((product) => {
     if (productStatusFilter === 'active' && !product.isActive) return false;
@@ -1163,32 +1206,16 @@ export const AdminDashboard: React.FC = () => {
               <h2 className="text-lg font-black text-stone-900">পণ্য ব্যবস্থাপনা</h2>
               <p className="text-xs text-stone-500 mt-0.5">এখান থেকে নতুন পণ্য যোগ, সম্পাদনা ও আর্কাইভ করতে পারবেন।</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={exportProductsCsv} className="px-3 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold">Export CSV</button>
+              <label className="px-3 py-2.5 rounded-xl border border-stone-300 bg-white text-stone-700 text-xs font-bold cursor-pointer">Import CSV<input type="file" accept=".csv,text/csv" className="hidden" onChange={e=>{const file=e.target.files?.[0];if(file)void importProductsCsv(file);e.currentTarget.value='';}}/></label>
+              <button type="button" onClick={() => {
                 setEditingProduct({
-                  nameBn: '',
-                  nameEn: '',
-                  categoryId: categories[0]?.id || '',
-                  categoryIds: [],
-                  price: 0,
-                  regularPrice: 0,
-                  stock: 0,
-                  imageUrl: '',
-                  descriptionBn: '',
-                  specifications: [],
-                  isFeatured: false,
-                  isPopular: false,
-                  isActive: true,
-                  unit: '',
+                  nameBn:'',nameEn:'',categoryId:categories[0]?.id||'',categoryIds:[],tags:[],price:0,regularPrice:0,stock:0,imageUrl:'',galleryUrls:[],shortDescription:'',descriptionBn:'',descriptionEn:'',specifications:[],variants:[],relatedProductIds:[],seoTitle:'',seoDescription:'',seoKeywords:[],isFeatured:false,isPopular:false,isNewArrival:false,isBestSeller:false,isSpecialOffer:false,isLimitedStock:false,isDraft:false,isActive:true,whatsappEnabled:true,lowStockThreshold:3,minOrderQty:1,unit:''
                 });
                 setIsProductModalOpen(true);
-              }}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              নতুন পণ্য যোগ করুন
-            </button>
+              }} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm"><Plus className="w-4 h-4"/> নতুন পণ্য যোগ করুন</button>
+            </div>
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-stone-200 space-y-3">
@@ -1227,6 +1254,20 @@ export const AdminDashboard: React.FC = () => {
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.nameBn}</option>)}
               </select>
             </div>
+            {filteredProducts.length > 0 && (
+              <div className="flex items-center gap-2">
+                <input type="checkbox" checked={filteredProducts.every(p=>selectedProductIds.includes(p.id))} onChange={toggleAllVisibleProducts} className="w-4 h-4 accent-emerald-700"/>
+                <span>দৃশ্যমান সব নির্বাচন</span>
+              </div>
+            )}
+            {selectedProductIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                <span className="text-xs font-bold text-emerald-900">{selectedProductIds.length}টি নির্বাচিত</span>
+                <button type="button" onClick={()=>void bulkSetProductStatus(true)} className="px-2.5 py-1.5 rounded-lg bg-white border text-xs font-bold">Active</button>
+                <button type="button" onClick={()=>void bulkSetProductStatus(false)} className="px-2.5 py-1.5 rounded-lg bg-white border text-xs font-bold">Archive</button>
+                <button type="button" onClick={()=>setSelectedProductIds([])} className="px-2.5 py-1.5 rounded-lg bg-white border text-xs font-bold">Clear</button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2 text-[11px] text-stone-500">
               <span>মোট: {products.length}</span>
               <span>·</span>
