@@ -953,7 +953,42 @@ export const AdminDashboard: React.FC = () => {
   // --- SAVE SETTINGS HANDLER ---
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateSettings(settingsForm);
+
+    const next = {
+      ...settingsForm,
+      shopName: settingsForm.shopName.trim(),
+      contactNumber: settingsForm.contactNumber.trim(),
+      whatsappNumber: settingsForm.whatsappNumber.trim(),
+      shopAddress: settingsForm.shopAddress.trim(),
+      deliveryChargeDhaka: Math.max(0, Number(settingsForm.deliveryChargeDhaka) || 0),
+      deliveryChargeOutsideDhaka: Math.max(0, Number(settingsForm.deliveryChargeOutsideDhaka) || 0),
+      freeDeliveryThreshold: Math.max(0, Number(settingsForm.freeDeliveryThreshold) || 0),
+      minimumOrderAmount: Math.max(0, Number(settingsForm.minimumOrderAmount) || 0),
+      codMinimumOrder: Math.max(0, Number(settingsForm.codMinimumOrder) || 0),
+      codMaximumOrder: Math.max(0, Number(settingsForm.codMaximumOrder) || 0),
+      customerCancellationMinutes: Math.max(0, Math.floor(Number(settingsForm.customerCancellationMinutes) || 0)),
+      featuredProductsCount: Math.max(0, Math.floor(Number(settingsForm.featuredProductsCount) || 0)),
+      popularProductsCount: Math.max(0, Math.floor(Number(settingsForm.popularProductsCount) || 0)),
+      newArrivalProductsCount: Math.max(0, Math.floor(Number(settingsForm.newArrivalProductsCount) || 0)),
+      bestSellerProductsCount: Math.max(0, Math.floor(Number(settingsForm.bestSellerProductsCount) || 0)),
+      cashOnDeliveryEnabled: true,
+    };
+
+    if (!next.shopName) {
+      showToast('দোকানের নাম খালি রাখা যাবে না।');
+      return;
+    }
+    if (next.codMaximumOrder > 0 && next.codMinimumOrder > next.codMaximumOrder) {
+      showToast('COD সর্বনিম্ন অর্ডার সর্বোচ্চ সীমার চেয়ে বেশি হতে পারবে না।');
+      return;
+    }
+    if (next.freeDeliveryThreshold > 0 && next.freeDeliveryThreshold < next.minimumOrderAmount) {
+      showToast('Free Delivery threshold ন্যূনতম অর্ডারের চেয়ে কম হতে পারবে না।');
+      return;
+    }
+
+    const saved = await updateSettings(next);
+    if (saved) setSettingsForm(next);
   };
 
   return (
