@@ -78,6 +78,7 @@ interface ShopContextType {
   adjustProductStock: (productId: string, delta: number, reason?: string, note?: string) => Promise<boolean>;
   getProductStockHistory: (productId: string, limit?: number) => Promise<ProductStockMovement[]>;
   deleteProduct: (id: string) => Promise<boolean>;
+  permanentlyDeleteProduct: (id: string) => Promise<boolean>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
   deleteCategory: (id: string) => Promise<{ success: boolean; message?: string }>;
@@ -1039,6 +1040,29 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }catch(error){console.error('Product archive failed:',error);showToast('পণ্যটি আর্কাইভ করা যায়নি।');return false;}
   };
 
+  const permanentlyDeleteProduct = async (id:string):Promise<boolean>=>{
+    const target=products.find(p=>p.id===id); if(!target) return false;
+    if(!isUuid(id)){
+      const referencedByOrder = orders.some(order => order.items.some(item => item.productId === id));
+      if(referencedByOrder){ showToast('এই পণ্যটি অর্ডার ইতিহাসে আছে, তাই স্থায়ীভাবে ডিলিট করা যাবে না।'); return false; }
+      setProducts(prev=>prev.filter(p=>p.id!==id));
+      showToast('পণ্যটি স্থায়ীভাবে ডিলিট করা হয়েছে।');
+      return true;
+    }
+    try{
+      const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const result=await supabaseFetch<any>('/rest/v1/rpc/admin_delete_halal_product',{method:'POST',token,body:{p_product_id:id}});
+      if(result?.success!==true){ showToast(result?.message || 'অর্ডার ইতিহাসে থাকা পণ্য স্থায়ীভাবে ডিলিট করা যাবে না।'); return false; }
+      setProducts(prev=>prev.filter(p=>p.id!==id));
+      showToast('পণ্যটি স্থায়ীভাবে ডিলিট করা হয়েছে।');
+      return true;
+    }catch(error){
+      console.error('Permanent product delete failed:',error);
+      showToast('পণ্যটি স্থায়ীভাবে ডিলিট করা যায়নি।');
+      return false;
+    }
+  };
+
   // Category Hierarchical Helpers & Actions
   const activeCategories = categories
     .filter((c) => c.isActive)
@@ -1478,6 +1502,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adjustProductStock,
         getProductStockHistory,
         deleteProduct,
+        permanentlyDeleteProduct,
         addCategory,
         updateCategory,
         deleteCategory,
