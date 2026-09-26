@@ -389,6 +389,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const allowed = await supabaseIsAdmin(token);
         if (!cancelled && allowed) {
+          setOrders([]);
+          setOrderStats({
+            total: 0,
+            todayOrders: 0,
+            todayRevenue: 0,
+            totalRevenue: 0,
+            pendingCount: 0,
+            processingCount: 0,
+            deliveredCount: 0,
+            cancelledCount: 0,
+          });
           setIsAdminAuthenticated(true);
           sessionStorage.setItem(STORAGE_KEYS.ADMIN_AUTH, 'true');
         } else if (!allowed) {
@@ -1473,7 +1484,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...nextSettings,
         seoKeywords: nextSettings.seoKeywords || [],
         announcementText: nextSettings.announcementText || '',
-        isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
+        // Preserve the admin toggle exactly; false must remain false.
+        isAnnouncementActive: nextSettings.isAnnouncementActive === true,
         cashOnDeliveryEnabled: true,
       };
 
