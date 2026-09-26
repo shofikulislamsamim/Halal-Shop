@@ -115,6 +115,7 @@ interface ShopContextType {
     deliveryCharge: number;
     total: number;
     orderNote?: string;
+    idempotencyKey?: string;
   }) => Promise<Order>;
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
   getOrdersByPhone: (phone: string) => Promise<Order[]>;
