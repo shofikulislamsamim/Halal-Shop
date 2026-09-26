@@ -4,6 +4,7 @@ import { Product, Category, Order, OrderStatus, ShopSettings } from '../../types
 import type { OrderStatusHistoryEntry } from '../../context/ShopContext';
 import { formatPrice } from '../../utils/helpers';
 import { supabaseSendPasswordResetEmail, supabaseUpdatePassword } from '../../lib/supabase';
+import { ProductFormModal } from './ProductFormModal';
 import {
   Package,
   ShoppingBag,
@@ -1947,205 +1948,14 @@ export const AdminDashboard: React.FC = () => {
 
       {/* ========================================================= */}
       {/* ADD / EDIT PRODUCT MODAL */}
-      {/* ========================================================= */}
+      */}
       {isProductModalOpen && editingProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b border-stone-100">
-              <h3 className="text-lg font-bold text-stone-900">
-                {editingProduct.id ? 'পণ্য সম্পাদনা করুন' : 'নতুন পণ্য যোগ করুন'}
-              </h3>
-              <button
-                onClick={() => setIsProductModalOpen(false)}
-                className="text-stone-400 hover:text-stone-700 p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProduct} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  পণ্যের নাম (বাংলা) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingProduct.nameBn || ''}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, nameBn: e.target.value })
-                  }
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  পণ্যের নাম (ইংরেজি)
-                </label>
-                <input
-                  type="text"
-                  value={editingProduct.nameEn || ''}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, nameEn: e.target.value })
-                  }
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    বিক্রয় মূল্য (টাকা) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={editingProduct.price || 0}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, price: Number(e.target.value) })
-                    }
-                    className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    রেগুলার / আগের মূল্য (টাকা)
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.regularPrice || 0}
-                    onChange={(e) =>
-                      setEditingProduct({
-                        ...editingProduct,
-                        regularPrice: Number(e.target.value),
-                      })
-                    }
-                    className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    স্টক পরিমাণ
-                  </label>
-                  <input
-                    type="number"
-                    value={editingProduct.stock || 0}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })
-                    }
-                    className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    ক্যাটাগরি
-                  </label>
-                  <select
-                    value={editingProduct.categoryId}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, categoryId: e.target.value })
-                    }
-                    className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                  >
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nameBn}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  পণ্যের ছবির লিংক (Image URL)
-                </label>
-                <input
-                  type="url"
-                  value={editingProduct.imageUrl || ''}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, imageUrl: e.target.value })
-                  }
-                  className="w-full text-xs sm:text-sm px-3 py-2 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  বিস্তারিত বর্ণনা (বাংলা)
-                </label>
-                <textarea
-                  rows={3}
-                  value={editingProduct.descriptionBn || ''}
-                  onChange={(e) =>
-                    setEditingProduct({ ...editingProduct, descriptionBn: e.target.value })
-                  }
-                  className="w-full text-xs sm:text-sm p-3 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div className="flex gap-4 pt-2">
-                <label className="flex items-center gap-1.5 text-xs text-stone-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingProduct.isActive ?? true}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, isActive: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-emerald-700"
-                  />
-                  <span>সক্রিয় (Active)</span>
-                </label>
-
-                <label className="flex items-center gap-1.5 text-xs text-stone-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingProduct.isFeatured ?? false}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, isFeatured: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-emerald-700"
-                  />
-                  <span>ফিচার্ড (Featured)</span>
-                </label>
-
-                <label className="flex items-center gap-1.5 text-xs text-stone-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editingProduct.isPopular ?? false}
-                    onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, isPopular: e.target.checked })
-                    }
-                    className="w-4 h-4 accent-emerald-700"
-                  />
-                  <span>জনপ্রিয় (Popular)</span>
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setIsProductModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border text-xs"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
-                >
-                  সংরক্ষণ করুন
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ProductFormModal
+          product={editingProduct}
+          categories={categories}
+          onClose={() => { setIsProductModalOpen(false); setEditingProduct(null); }}
+          onSaved={() => { setIsProductModalOpen(false); setEditingProduct(null); }}
+        />
       )}
 
       {/* ========================================================= */}
