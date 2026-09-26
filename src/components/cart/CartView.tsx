@@ -101,7 +101,7 @@ export const CartView: React.FC = () => {
         {/* Left Column: Cart Items List */}
         <div className="lg:col-span-2 space-y-3">
           {cart.map((item) => {
-            const itemTotal = item.product.price * item.quantity;
+            const itemTotal = (item.variantPrice ?? item.product.price) * item.quantity;
 
             return (
               <div
@@ -129,14 +129,14 @@ export const CartView: React.FC = () => {
                     {item.product.nameBn}
                   </h3>
                   <div className="text-xs text-stone-500 mt-1">
-                    প্রতিটির মূল্য: <span className="font-bold text-emerald-900 price-display">{formatPrice(item.product.price)}</span>
+                    প্রতিটির মূল্য: <span className="font-bold text-emerald-900 price-display">{formatPrice(item.variantPrice ?? item.product.price)}</span>
                   </div>
 
                   {/* Quantity and Subtotal Controls */}
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-stone-100">
                     <div className="flex items-center border border-stone-300 rounded-lg bg-stone-50">
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
+                        onClick={() => updateCartQuantity(item.product.id, item.quantity - 1, item.variantId)}
                         className="w-7 h-7 flex items-center justify-center text-stone-600 hover:bg-stone-200 rounded-l-lg transition-colors"
                         aria-label="Decrease"
                       >
@@ -146,8 +146,8 @@ export const CartView: React.FC = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
-                        disabled={item.quantity >= item.product.stock}
+                        onClick={() => updateCartQuantity(item.product.id, item.quantity + 1, item.variantId)}
+                        disabled={item.quantity >= (item.variantId ? (item.product.variants?.find((v) => v.id === item.variantId)?.stock ?? 0) : item.product.stock)}
                         className="w-7 h-7 flex items-center justify-center text-stone-600 hover:bg-stone-200 rounded-r-lg disabled:opacity-40 transition-colors"
                         aria-label="Increase"
                       >
@@ -161,7 +161,7 @@ export const CartView: React.FC = () => {
                       </span>
 
                       <button
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => removeFromCart(item.product.id, item.variantId)}
                         className="text-stone-400 hover:text-rose-600 p-1 transition-colors"
                         title="মুছে ফেলুন"
                         aria-label="Remove Item"
