@@ -75,6 +75,19 @@ export const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-stone-200/90 shadow-2xs">
       {/* 1. Top Announcement Bar */}
+      {settings.isAnnouncementActive !== false && settings.announcementText?.trim() && (
+        <div className="bg-emerald-900 text-emerald-100 text-xs py-1.5 px-3 sm:px-6">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <a
+              href={settings.announcementLink || '#'}
+              onClick={(e) => { if (!settings.announcementLink) e.preventDefault(); }}
+              className="w-full text-center font-semibold hover:text-amber-200 transition-colors"
+            >
+              {settings.announcementText}
+            </a>
+          </div>
+        </div>
+      )}
       <div className="bg-emerald-900 text-emerald-100 text-xs py-1.5 px-3 sm:px-6">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -115,7 +128,7 @@ export const Header: React.FC = () => {
             aria-label={settings.shopName}
           >
             <img
-              src="/Halal-Shop/halal-shop-logo.jpg"
+              src={settings.logoUrl || "/Halal-Shop/halal-shop-logo.jpg"}
               alt={settings.shopName}
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover bg-stone-50 border border-stone-200 shadow-xs group-hover:shadow-sm transition-shadow"
             />
