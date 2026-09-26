@@ -12,7 +12,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart, buyNow, navigateTo, settings, categories } = useShop();
 
   const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
+  const stockThreshold = Math.max(1, product.lowStockThreshold ?? 3);
+  const isLowStock = product.stock > 0 && product.stock <= stockThreshold;
   const discountPercent = product.regularPrice
     ? Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100)
     : 0;
@@ -56,17 +57,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         )}
 
         {/* Stock Status Badge */}
-        <div className="absolute top-2 right-2">
-          {isOutOfStock ? (
+        {settings.outOfStockVisible !== false || settings.lowStockWarningVisible !== false ? (
+          <div className="absolute top-2 right-2">
+          {isOutOfStock && settings.outOfStockVisible !== false ? (
             <span className="bg-stone-800 text-white font-semibold text-[10px] px-2 py-0.5 rounded-md">
               স্টক শেষ
             </span>
-          ) : isLowStock ? (
+          ) : isLowStock && settings.lowStockWarningVisible !== false ? (
             <span className="bg-amber-100 border border-amber-300 text-amber-900 font-bold text-[10px] px-1.5 py-0.5 rounded-md">
               মাত্র {product.stock} টি
             </span>
           ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
 
       {/* 2. Product Meta & Content */}
@@ -101,6 +104,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span className="text-base sm:text-lg font-bold text-emerald-900 price-display">
               {formatPrice(product.price)}
             </span>
+            {settings.skuVisible && product.sku && (
+              <span className="text-[10px] text-stone-400 block mb-1">SKU: {product.sku}</span>
+            )}
             {product.regularPrice && product.regularPrice > product.price && (
               <span className="text-xs text-stone-400 line-through price-display">
                 {formatPrice(product.regularPrice)}
