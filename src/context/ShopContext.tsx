@@ -738,7 +738,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cancelCustomerOrder = async (orderCode: string, phone: string): Promise<boolean> => {
     const cleanCode = orderCode.trim().toUpperCase();
-    const cleanPhone = phone.replace(/\\s/g, '').replace(/\\+/g, '').replace(/-/g, '');
+    const cleanPhone = phone.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '');
     if (!cleanCode || cleanPhone.length < 11) {
       showToast('অর্ডার নম্বর ও সঠিক মোবাইল নাম্বার দিন।');
       return false;
@@ -746,7 +746,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isSupabaseConfigured) {
       const target = orders.find((order) =>
         order.id.toUpperCase() === cleanCode &&
-        order.mobile.replace(/\\s/g, '').replace(/\\+/g, '').replace(/-/g, '') === cleanPhone
+        order.mobile.replace(/\s/g, '').replace(/\+/g, '').replace(/-/g, '') === cleanPhone
       );
       if (!target || !['pending', 'confirmed'].includes(target.status)) {
         showToast('এই অর্ডারটি এখন বাতিল করা যাবে না।');
