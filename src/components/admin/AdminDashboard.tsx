@@ -90,7 +90,7 @@ export const AdminDashboard: React.FC = () => {
       if (!cancelled) setIsStockHistoryLoading(false);
     });
     return () => { cancelled = true; };
-  }, [stockEditorProductId, getProductStockHistory]);
+  }, [stockEditorProductId]);
   // Login form state
   const [adminEmail, setAdminEmail] = useState('sk82716102@gmail.com');
   const [adminPassword, setAdminPassword] = useState('');
