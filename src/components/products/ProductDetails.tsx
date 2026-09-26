@@ -53,7 +53,8 @@ export const ProductDetails: React.FC = () => {
   }
 
   const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 5;
+  const stockThreshold = Math.max(1, product.lowStockThreshold ?? 3);
+  const isLowStock = product.stock > 0 && product.stock <= stockThreshold;
   const discountAmount = product.regularPrice ? product.regularPrice - product.price : 0;
   const discountPercent = product.regularPrice
     ? Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100)
@@ -149,6 +150,10 @@ export const ProductDetails: React.FC = () => {
                 {product.nameBn}
               </h1>
 
+              {settings.skuVisible && product.sku && (
+                <div className="text-[11px] text-stone-400 mb-2">SKU: {product.sku}</div>
+              )}
+
               {/* Price & Savings */}
               <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3 mb-4 p-3.5 bg-[#F7F6F0] rounded-2xl border border-stone-200/80">
                 <span className="text-2xl sm:text-3xl font-extrabold text-emerald-900 price-display">
@@ -167,13 +172,17 @@ export const ProductDetails: React.FC = () => {
               </div>
 
               {/* Stock Status */}
+              {settings.stockQuantityVisible !== false && !isOutOfStock && (
+                <div className="text-[11px] text-stone-500 mb-2">স্টকে আছে: {product.stock} {product.unit || 'টি'}</div>
+              )}
+
               <div className="mb-5 flex items-center gap-2">
                 <span className="text-xs font-medium text-stone-500">স্টক অবস্থা:</span>
-                {isOutOfStock ? (
+                {isOutOfStock && settings.outOfStockVisible !== false ? (
                   <span className="text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200">
                     স্টক শেষ
                   </span>
-                ) : isLowStock ? (
+                ) : isLowStock && settings.lowStockWarningVisible !== false ? (
                   <span className="text-xs font-bold text-amber-900 bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
                     সীমিত স্টক (মাত্র {product.stock} টি অবশিষ্ট)
                   </span>
