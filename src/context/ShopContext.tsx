@@ -76,7 +76,8 @@ interface ShopContextType {
   addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<boolean>;
   adjustProductStock: (productId: string, delta: number, reason?: string, note?: string) => Promise<boolean>;
-  getProductStockHistory: (productId: string, limit?: number) => Promise<ProductStockMovement[]>;
+  getProductStockHistory: (productId: string, limit?: number, variantId?: string) => Promise<ProductStockMovement[]>;
+  adjustProductVariantStock: (productId: string, variantId: string, delta: number, reason?: string, note?: string) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
   permanentlyDeleteProduct: (id: string) => Promise<boolean>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
@@ -1373,6 +1374,42 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const adjustProductVariantStock = async (
+    productId: string, variantId: string, delta: number,
+    reason = 'manual_adjustment', note?: string
+  ): Promise<boolean> => {
+    if (!Number.isInteger(delta) || delta === 0) return false;
+    const target = products.find((p) => p.id === productId);
+    const variant = target?.variants?.find((v) => v.id === variantId);
+    if (!target || !variant) return false;
+    if (!isUuid(productId)) {
+      const nextVariantStock = variant.stock + delta;
+      if (nextVariantStock < 0) { showToast('ভ্যারিয়েন্টের স্টক ০-এর নিচে হতে পারবে না।'); return false; }
+      const nextVariants = (target.variants || []).map((v) => v.id === variantId ? { ...v, stock: nextVariantStock } : v);
+      const nextTotal = nextVariants.reduce((sum, v) => sum + Math.max(0, Math.floor(Number(v.stock) || 0)), 0);
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, variants: nextVariants, stock: nextTotal } : p));
+      showToast(`"${variant.name}" ভ্যারিয়েন্টের স্টক ${delta > 0 ? 'বাড়ানো' : 'কমানো'} হয়েছে`);
+      return true;
+    }
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_variant_stock_with_history', {
+        method: 'POST', token,
+        body: { p_product_id: productId, p_variant_id: variantId, p_delta: delta, p_reason: reason, p_note: note || null },
+      });
+      const nextVariantStock = Number(remote?.variant_stock);
+      const nextTotal = Number(remote?.stock);
+      if (!Number.isFinite(nextVariantStock) || nextVariantStock < 0 || !Number.isFinite(nextTotal) || nextTotal < 0) throw new Error('Invalid variant stock response.');
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, stock: nextTotal, variants: (p.variants || []).map((v) => v.id === variantId ? { ...v, stock: nextVariantStock } : v) } : p));
+      showToast(`"${variant.name}" ভ্যারিয়েন্টের স্টক ${delta > 0 ? 'বাড়ানো' : 'কমানো'} হয়েছে`);
+      return true;
+    } catch (error) {
+      console.error('Variant inventory adjustment failed:', error);
+      showToast('ভ্যারিয়েন্টের স্টক আপডেট করা যায়নি।');
+      return false;
+    }
+  };
   const adjustProductStock = async (
     productId: string,
     delta: number,
@@ -1382,6 +1419,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!Number.isInteger(delta) || delta === 0) return false;
     const target = products.find((p) => p.id === productId);
     if (!target) return false;
+    if ((target.variants || []).length > 0) {
+      showToast('এই পণ্যের স্টক ভ্যারিয়েন্ট অনুযায়ী পরিচালিত হয়। Variant Inventory থেকে স্টক পরিবর্তন করুন।');
+      return false;
+    }
 
     if (!isUuid(productId)) {
       const nextStock = Math.max(0, target.stock + delta);
@@ -1415,14 +1456,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const getProductStockHistory = async (productId: string, limit = 20): Promise<ProductStockMovement[]> => {
+  const getProductStockHistory = async (productId: string, limit = 20, variantId?: string): Promise<ProductStockMovement[]> => {
     if (!isUuid(productId) || !isSupabaseConfigured) return [];
     const token = getSupabaseAccessToken();
     if (!token) return [];
     try {
       const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
       const rows = await supabaseFetch<any[]>(
-        `/rest/v1/halal_product_stock_movements?select=id,product_id,previous_stock,delta,new_stock,reason,note,changed_by,created_at&product_id=eq.${encodeURIComponent(productId)}&order=created_at.desc&limit=${safeLimit}`,
+        `/rest/v1/halal_product_stock_movements?select=id,product_id,variant_id,variant_name,previous_stock,delta,new_stock,reason,note,changed_by,created_at&product_id=eq.${encodeURIComponent(productId)}${variantId ? `&variant_id=eq.${encodeURIComponent(variantId)}` : ''}&order=created_at.desc&limit=${safeLimit}`,
         { token }
       );
       if (!Array.isArray(rows)) return [];
@@ -1435,6 +1476,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         reason: row.reason || 'manual_adjustment',
         note: row.note || undefined,
         changedBy: row.changed_by || undefined,
+        variantId: row.variant_id || undefined,
+        variantName: row.variant_name || undefined,
         createdAt: row.created_at,
       }));
     } catch (error) {
