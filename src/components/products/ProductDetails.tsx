@@ -59,15 +59,16 @@ export const ProductDetails: React.FC = () => {
   const effectiveStock = selectedVariant?.stock ?? product.stock;
   const isOutOfStock = effectiveStock <= 0;
   const stockThreshold = Math.max(1, product.lowStockThreshold ?? 3);
-  const isLowStock = product.stock > 0 && product.stock <= stockThreshold;
-  const discountAmount = product.regularPrice ? product.regularPrice - product.price : 0;
-  const discountPercent = product.regularPrice
-    ? Math.round(((product.regularPrice - product.price) / product.regularPrice) * 100)
+  const effectiveRegularPrice = selectedVariant?.regularPrice ?? product.regularPrice;
+  const isLowStock = effectiveStock > 0 && effectiveStock <= stockThreshold;
+  const discountAmount = effectiveRegularPrice ? effectiveRegularPrice - effectivePrice : 0;
+  const discountPercent = effectiveRegularPrice && effectiveRegularPrice > effectivePrice
+    ? Math.round(((effectiveRegularPrice - effectivePrice) / effectiveRegularPrice) * 100)
     : 0;
 
   const whatsAppUrl = getWhatsAppUrl(
     settings.whatsappNumber,
-    getProductWhatsAppMessage(settings.shopName, product.nameBn, product.price)
+    getProductWhatsAppMessage(settings.shopName, product.nameBn, effectivePrice)
   );
 
   const relatedProducts = products
@@ -165,10 +166,10 @@ export const ProductDetails: React.FC = () => {
                 <span className="text-2xl sm:text-3xl font-extrabold text-emerald-900 price-display">
                   {formatPrice(effectivePrice)}
                 </span>
-                {product.regularPrice && product.regularPrice > product.price && (
+                {effectiveRegularPrice && effectiveRegularPrice > effectivePrice && (
                   <>
                     <span className="text-sm sm:text-base text-stone-400 line-through font-medium price-display">
-                      {formatPrice(product.regularPrice)}
+                      {formatPrice(effectiveRegularPrice)}
                     </span>
                     <span className="text-xs font-semibold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
                       সাশ্রয় ৳ {discountAmount.toLocaleString('en-IN')}
@@ -179,7 +180,7 @@ export const ProductDetails: React.FC = () => {
 
               {/* Stock Status */}
               {settings.stockQuantityVisible !== false && !isOutOfStock && (
-                <div className="text-[11px] text-stone-500 mb-2">স্টকে আছে: {product.stock} {product.unit || 'টি'}</div>
+                <div className="text-[11px] text-stone-500 mb-2">স্টকে আছে: {effectiveStock} {product.unit || 'টি'}</div>
               )}
 
               <div className="mb-5 flex items-center gap-2">
