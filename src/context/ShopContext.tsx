@@ -1641,6 +1641,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addProduct,
         updateProduct,
         adjustProductStock,
+        adjustProductVariantStock,
         getProductStockHistory,
         deleteProduct,
         permanentlyDeleteProduct,
