@@ -115,6 +115,27 @@ export const CheckoutView: React.FC = () => {
       setAltPhoneError('');
     }
 
+    const minimumOrder = Math.max(0, Number(settings.minimumOrderAmount ?? 0) || 0);
+    if (minimumOrder > 0 && itemsSubtotal < minimumOrder) {
+      setSubmitError(`এই দোকানে ন্যূনতম অর্ডার ${formatPrice(minimumOrder)}।`);
+      valid = false;
+    }
+
+    const codMinimum = Math.max(0, Number(settings.codMinimumOrder ?? 0) || 0);
+    const codMaximum = Math.max(0, Number(settings.codMaximumOrder ?? 0) || 0);
+    if (settings.cashOnDeliveryEnabled !== false) {
+      if (itemsSubtotal < codMinimum) {
+        setSubmitError(`Cash on Delivery-এর জন্য ন্যূনতম পণ্য মূল্য ${formatPrice(codMinimum)}।`);
+        valid = false;
+      } else if (codMaximum > 0 && itemsSubtotal > codMaximum) {
+        setSubmitError(`Cash on Delivery-এর সর্বোচ্চ পণ্য মূল্য ${formatPrice(codMaximum)}।`);
+        valid = false;
+      }
+    } else {
+      setSubmitError('বর্তমানে Cash on Delivery সক্রিয় নেই।');
+      valid = false;
+    }
+
     const addressValid =
       Boolean(address.district?.trim()) &&
       Boolean(address.upazilaThana?.trim()) &&
@@ -177,6 +198,28 @@ export const CheckoutView: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (settings.storeStatus && settings.storeStatus !== 'open') {
+    const maintenance = settings.storeStatus === 'maintenance';
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+        <div className="w-16 h-16 bg-stone-100 text-stone-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+          {maintenance ? '🔧' : '⏸️'}
+        </div>
+        <h2 className="text-xl font-black text-stone-900 mb-2">
+          {maintenance ? 'ওয়েবসাইট সাময়িক রক্ষণাবেক্ষণে' : 'এই মুহূর্তে অর্ডার নেওয়া হচ্ছে না'}
+        </h2>
+        <p className="text-sm text-stone-600 leading-6">
+          {maintenance
+            ? (settings.maintenanceMessage || 'ওয়েবসাইট বর্তমানে রক্ষণাবেক্ষণে আছে।')
+            : (settings.storeClosedMessage || 'বর্তমানে দোকান বন্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।')}
+        </p>
+        <button onClick={() => navigateTo('products')} className="mt-5 bg-emerald-800 text-white font-bold px-6 py-2.5 rounded-xl text-sm">
+          পণ্য দেখুন
+        </button>
+      </div>
+    );
+  }
 
   if (checkoutItems.length === 0) {
     return (
