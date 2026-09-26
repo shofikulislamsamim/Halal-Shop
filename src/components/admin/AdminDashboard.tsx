@@ -482,10 +482,20 @@ export const AdminDashboard: React.FC = () => {
   };
   const bulkSetProductStatus = async (active: boolean) => {
     if (!selectedProductIds.length) return;
-    const count = selectedProductIds.length;
-    for (const id of selectedProductIds) await updateProduct(id, { isActive: active, isDraft: false });
+    const selected = [...selectedProductIds];
+    let successCount = 0;
+    for (const id of selected) {
+      const ok = await updateProduct(id, { isActive: active });
+      if (ok) successCount += 1;
+    }
     setSelectedProductIds([]);
-    showToast(count + 'টি পণ্যের স্ট্যাটাস আপডেট হয়েছে।');
+    if (successCount === selected.length) {
+      showToast(selected.length + 'টি পণ্যের স্ট্যাটাস আপডেট হয়েছে।');
+    } else if (successCount > 0) {
+      showToast(successCount + '/' + selected.length + 'টি পণ্যের স্ট্যাটাস আপডেট হয়েছে।');
+    } else {
+      showToast('নির্বাচিত পণ্যের কোনো স্ট্যাটাস আপডেট করা যায়নি।');
+    }
   };
   const exportProductsCsv = () => {
     const headers = ['id','nameBn','nameEn','sku','slug','categoryId','price','regularPrice','stock','unit','brand','manufacturer','originCountry','tags','descriptionBn','descriptionEn','isFeatured','isPopular','isNewArrival','isBestSeller','isSpecialOffer','isLimitedStock','isActive','isDraft'];
@@ -963,23 +973,6 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  // --- SAVE PRODUCT HANDLER ---
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct?.nameBn || editingProduct.price == null || Number(editingProduct.price) < 0) {
-      showToast('পণ্যের নাম ও সঠিক মূল্য দিন');
-      return;
-    }
-
-    const success = editingProduct.id
-      ? await updateProduct(editingProduct.id, editingProduct)
-      : await addProduct(editingProduct as any);
-
-    if (!success) return;
-    setIsProductModalOpen(false);
-    setEditingProduct(null);
-  };
-
   // --- SAVE CATEGORY HANDLER ---
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1032,6 +1025,14 @@ export const AdminDashboard: React.FC = () => {
     if (next.freeDeliveryThreshold > 0 && next.freeDeliveryThreshold < next.minimumOrderAmount) {
       showToast('Free Delivery threshold ন্যূনতম অর্ডারের চেয়ে কম হতে পারবে না।');
       return;
+    }
+    if (next.announcementStartAt && next.announcementEndAt) {
+      const start = new Date(next.announcementStartAt).getTime();
+      const end = new Date(next.announcementEndAt).getTime();
+      if (Number.isFinite(start) && Number.isFinite(end) && end < start) {
+        showToast('Announcement-এর শেষ সময় শুরুর সময়ের আগে হতে পারবে না।');
+        return;
+      }
     }
 
     const saved = await updateSettings(next);
@@ -1429,20 +1430,33 @@ export const AdminDashboard: React.FC = () => {
                           <EyeOff className="w-3.5 h-3.5" /> আর্কাইভ
                         </button>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm('এই পণ্যটি আবার সক্রিয় করে কাস্টমারদের জন্য প্রকাশ করবেন?')) {
-                              void (async () => {
-                                const success = await updateProduct(product.id, { isActive: true });
-                                if (success) showToast('পণ্যটি আবার সক্রিয় করা হয়েছে।');
-                              })();
-                            }
-                          }}
-                          className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> পুনরায় চালু
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('এই পণ্যটি আবার সক্রিয় করে কাস্টমারদের জন্য প্রকাশ করবেন?')) {
+                                void (async () => {
+                                  const success = await updateProduct(product.id, { isActive: true });
+                                  if (success) showToast('পণ্যটি আবার সক্রিয় করা হয়েছে।');
+                                })();
+                              }
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> পুনরায় চালু
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('এই পণ্যটি স্থায়ীভাবে ডিলিট করবেন? অর্ডার ইতিহাসে ব্যবহৃত পণ্য হলে ডিলিট হবে না।')) {
+                                void permanentlyDeleteProduct(product.id);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> স্থায়ী ডিলিট
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
