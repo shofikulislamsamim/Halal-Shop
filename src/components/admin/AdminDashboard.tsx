@@ -94,7 +94,8 @@ export const AdminDashboard: React.FC = () => {
     return () => { cancelled = true; };
   }, [stockEditorProductId]);
   // Login form state
-  const [adminEmail, setAdminEmail] = useState('sk82716102@gmail.com');
+  // Never prefill or expose a specific administrator email in the UI.
+  const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
