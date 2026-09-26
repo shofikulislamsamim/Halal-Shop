@@ -555,6 +555,14 @@ export const AdminDashboard: React.FC = () => {
         setViewingOrder((current) =>
           current?.id === orderId ? { ...current, status: updatedStatus } : current
         );
+        await refreshOrders({
+          status: orderStatusFilter,
+          search: debouncedOrderSearchQuery,
+          date: orderDateFilter,
+          sort: orderSort,
+          limit: Math.max(ORDERS_PER_PAGE, orders.length),
+          offset: 0,
+        });
       }
     } finally {
       setUpdatingOrderId(null);
@@ -585,6 +593,14 @@ export const AdminDashboard: React.FC = () => {
           ? { ...current, deliveryCharge: result.delivery, total: result.total }
           : current
         );
+        await refreshOrders({
+          status: orderStatusFilter,
+          search: debouncedOrderSearchQuery,
+          date: orderDateFilter,
+          sort: orderSort,
+          limit: Math.max(ORDERS_PER_PAGE, orders.length),
+          offset: 0,
+        });
         setEditingDeliveryOrderId(null);
         setEditingDeliveryCharge('');
       }
@@ -617,6 +633,14 @@ export const AdminDashboard: React.FC = () => {
         setViewingOrder((current) =>
           current?.id === viewingOrder.id ? { ...current, total: updatedTotal } : current
         );
+        await refreshOrders({
+          status: orderStatusFilter,
+          search: debouncedOrderSearchQuery,
+          date: orderDateFilter,
+          sort: orderSort,
+          limit: Math.max(ORDERS_PER_PAGE, orders.length),
+          offset: 0,
+        });
         setEditingOrderAmountId(null);
         setEditingOrderAmount('');
       }
