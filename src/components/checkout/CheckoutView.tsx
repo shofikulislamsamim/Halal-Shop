@@ -510,6 +510,15 @@ export const CheckoutView: React.FC = () => {
                   )}
                 </span>
               </div>
+              {(settings.estimatedDeliveryDhaka || settings.estimatedDeliveryOutsideDhaka || settings.deliveryCoverage || settings.sameDayDelivery) && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-[11px] text-emerald-900 space-y-1.5">
+                  {settings.deliveryCoverage && <div><strong>ডেলিভারি কভারেজ:</strong> {settings.deliveryCoverage}</div>}
+                  {(isDhaka ? settings.estimatedDeliveryDhaka : settings.estimatedDeliveryOutsideDhaka) && (
+                    <div><strong>আনুমানিক ডেলিভারি:</strong> {isDhaka ? settings.estimatedDeliveryDhaka : settings.estimatedDeliveryOutsideDhaka}</div>
+                  )}
+                  {settings.sameDayDelivery && isDhaka && <div><strong>Same-day delivery:</strong> নির্বাচিত এলাকায় প্রযোজ্য হতে পারে।</div>}
+                </div>
+              )}
               <div className="pt-2 border-t border-stone-200 flex justify-between items-baseline">
                 <span className="font-bold text-sm text-stone-900">মোট</span>
                 <span className="text-xl font-black text-emerald-900 price-display">{formatPrice(totalAmount)}</span>
@@ -529,6 +538,7 @@ export const CheckoutView: React.FC = () => {
               <div className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" /><span>পণ্য হাতে পেয়ে টাকা দিন</span></div>
               <div className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" /><span>কোনো অগ্রিম পেমেন্ট নেই</span></div>
               <div className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-700 shrink-0" /><span>ডেলিভারি চার্জ সিস্টেম অনুযায়ী</span></div>
+              {settings.codInstructions && <div className="pt-2 mt-2 border-t border-emerald-100"><strong>নির্দেশনা:</strong> {settings.codInstructions}</div>}
             </div>
           </div>
         </div>
