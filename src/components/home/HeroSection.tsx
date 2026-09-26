@@ -19,16 +19,16 @@ export const HeroSection: React.FC = () => {
               <span>বিশ্বস্ত হালাল পণ্যের অনলাইন শপ</span>
             </div>
             <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.2]">
-              Halal Shop
-              <span className="block text-amber-300">বিশ্বস্ত হালাল পণ্যের অনলাইন শপ</span>
+              {settings.heroTitle || settings.shopName}
+              <span className="block text-amber-300">{settings.tagline || 'বিশ্বস্ত হালাল পণ্যের অনলাইন শপ'}</span>
             </h1>
             <p className="mt-4 max-w-2xl mx-auto lg:mx-0 text-sm sm:text-base text-emerald-50/85 leading-7">
               {settings.heroSubtitle || 'খাঁটি মধু, কালোজিরা, ইসলামিক বই ও প্রয়োজনীয় হালাল পণ্য পৌঁছে যাবে আপনার ঠিকানায়।'}
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center lg:justify-start gap-2.5">
-              <button onClick={() => navigateTo('products')} className="group inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-extrabold text-stone-950 shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5 hover:bg-amber-300 active:translate-y-0" id="hero-shop-now-btn">
+              <button onClick={() => navigateTo(settings.heroButtonLink === 'track' ? 'track' : 'products')} className="group inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 px-5 sm:px-6 py-3.5 text-xs sm:text-sm font-extrabold text-stone-950 shadow-lg shadow-black/10 transition-all hover:-translate-y-0.5 hover:bg-amber-300 active:translate-y-0" id="hero-shop-now-btn">
                 <ShoppingBag className="w-4 h-4" />
-                <span>এখনই কেনাকাটা করুন</span>
+                <span>{settings.heroButtonText || 'এখনই কেনাকাটা করুন'}</span>
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
               <button onClick={() => navigateTo('track')} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-xs sm:text-sm font-bold text-white backdrop-blur transition-all hover:bg-white/10" id="hero-track-btn">
@@ -47,7 +47,7 @@ export const HeroSection: React.FC = () => {
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-3 shadow-2xl shadow-black/20 backdrop-blur-sm">
               <div className="rounded-[1.5rem] bg-white p-6 sm:p-7 text-center text-stone-900">
                 <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-stone-100 bg-stone-50 shadow-sm">
-                  <img src={settings.logoUrl || '/Halal-Shop/halal-shop-logo.jpg'} alt={settings.shopName} className="h-full w-full object-cover" />
+                  <img src={settings.heroImageUrl || settings.logoUrl || '/Halal-Shop/halal-shop-logo.jpg'} alt={settings.shopName} className="h-full w-full object-cover" />
                 </div>
                 <h2 className="mt-4 text-xl font-black text-emerald-950">{settings.shopName}</h2>
                 <p className="mt-1 text-xs font-medium text-stone-500">{settings.tagline}</p>
