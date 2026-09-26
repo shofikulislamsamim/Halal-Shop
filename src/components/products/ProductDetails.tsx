@@ -29,11 +29,13 @@ export const ProductDetails: React.FC = () => {
   } = useShop();
 
   const [quantity, setQuantity] = useState(1);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>();
 
   const product = products.find((p) => p.id === selectedProductId);
 
   useEffect(() => {
     setQuantity(1);
+    setSelectedVariantId(undefined);
   }, [selectedProductId]);
 
   const category = categories.find((c) => c.id === product?.categoryId);
@@ -52,7 +54,10 @@ export const ProductDetails: React.FC = () => {
     );
   }
 
-  const isOutOfStock = product.stock <= 0;
+  const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId) || (product.variants?.length === 1 ? product.variants[0] : undefined);
+  const effectivePrice = selectedVariant?.price ?? product.price;
+  const effectiveStock = selectedVariant?.stock ?? product.stock;
+  const isOutOfStock = effectiveStock <= 0;
   const stockThreshold = Math.max(1, product.lowStockThreshold ?? 3);
   const isLowStock = product.stock > 0 && product.stock <= stockThreshold;
   const discountAmount = product.regularPrice ? product.regularPrice - product.price : 0;
@@ -77,10 +82,11 @@ export const ProductDetails: React.FC = () => {
   };
 
   const handleQtyIncrease = () => {
-    if (quantity < product.stock) setQuantity(quantity + 1);
+    if (quantity < effectiveStock) setQuantity(quantity + 1);
   };
 
   const breadcrumbs = category ? getCategoryPath(category.id, categories) : [];
+  const canBuySelected = !product.variants?.length || Boolean(selectedVariant);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 pb-32 md:pb-16">
@@ -157,7 +163,7 @@ export const ProductDetails: React.FC = () => {
               {/* Price & Savings */}
               <div className="flex flex-wrap items-baseline gap-2.5 sm:gap-3 mb-4 p-3.5 bg-[#F7F6F0] rounded-2xl border border-stone-200/80">
                 <span className="text-2xl sm:text-3xl font-extrabold text-emerald-900 price-display">
-                  {formatPrice(product.price)}
+                  {formatPrice(effectivePrice)}
                 </span>
                 {product.regularPrice && product.regularPrice > product.price && (
                   <>
@@ -194,6 +200,21 @@ export const ProductDetails: React.FC = () => {
                 )}
               </div>
 
+              {product.variants?.length ? (
+                <div className="mb-4">
+                  <label className="block text-xs font-bold text-stone-700 mb-2">ভ্যারিয়েন্ট নির্বাচন করুন</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {product.variants.map((variant) => (
+                      <button key={variant.id} type="button" onClick={() => { setSelectedVariantId(variant.id); setQuantity(1); }} disabled={variant.stock <= 0}
+                        className={`rounded-xl border px-3 py-2 text-left transition ${selectedVariantId === variant.id ? 'border-emerald-700 bg-emerald-50 text-emerald-900' : 'border-stone-200 bg-white text-stone-700'} disabled:opacity-40 disabled:cursor-not-allowed`}>
+                        <span className="block text-xs font-bold">{variant.name}</span>
+                        <span className="block text-[11px] mt-0.5">{formatPrice(variant.price)} · {variant.stock > 0 ? `স্টক ${variant.stock}` : 'স্টক নেই'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {/* Quantity Selector */}
               {!isOutOfStock && (
                 <div className="mb-6 flex items-center gap-4">
@@ -220,7 +241,7 @@ export const ProductDetails: React.FC = () => {
                     </button>
                   </div>
                   <span className="text-xs text-stone-400">
-                    (স্টক: {product.stock} টি)
+                    (স্টক: {effectiveStock} টি)
                   </span>
                 </div>
               )}
@@ -230,8 +251,8 @@ export const ProductDetails: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Buy Now (Primary direct checkout) */}
                   <button
-                    onClick={() => buyNow(product, quantity)}
-                    disabled={isOutOfStock}
+                    onClick={() => buyNow(product, quantity, selectedVariant)}
+                    disabled={isOutOfStock || !canBuySelected}
                     className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] ${
                       isOutOfStock
                         ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
@@ -245,7 +266,7 @@ export const ProductDetails: React.FC = () => {
 
                   {/* Add to Cart */}
                   <button
-                    onClick={() => addToCart(product, quantity)}
+                    onClick={() => addToCart(product, quantity, selectedVariant)}
                     disabled={isOutOfStock}
                     className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm sm:text-base flex items-center justify-center gap-2 border-2 transition-all active:scale-[0.98] ${
                       isOutOfStock
