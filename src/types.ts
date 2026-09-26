@@ -5,16 +5,13 @@ export interface StructuredAddress {
   division: string;
   district: string;
   upazilaThana: string;
-  // Rural specific
   union?: string;
   village?: string;
-  // Urban specific
   city?: string;
   area?: string;
   roadBlockSector?: string;
   houseFlat?: string;
   landmark?: string;
-  // Shared
   detailedAddress: string;
   formattedFullAddress: string;
 }
@@ -29,7 +26,7 @@ export interface Category {
   nameBn: string;
   nameEn: string;
   slug: string;
-  parentId?: string | null; // self-referencing relationship: null for Root Category
+  parentId?: string | null;
   description?: string;
   icon?: string;
   imageUrl?: string;
@@ -92,6 +89,18 @@ export interface Product {
   whatsappEnabled?: boolean;
 }
 
+export interface ProductStockMovement {
+  id: string;
+  productId: string;
+  previousStock: number;
+  delta: number;
+  newStock: number;
+  reason: string;
+  note?: string;
+  changedBy?: string;
+  createdAt: string;
+}
+
 export interface CartItem {
   product: Product;
   quantity: number;
@@ -128,7 +137,7 @@ export interface WebsiteSettings {
   shopName: string;
   tagline: string;
   logoUrl: string;
-  whatsappNumber: string; // digits only e.g. 8801700000000
+  whatsappNumber: string;
   contactNumber: string;
   facebookPage: string;
   deliveryChargeDhaka: number;
@@ -145,15 +154,15 @@ export interface WebsiteSettings {
 
 export type ShopSettings = WebsiteSettings;
 
-export type AppView = 
-  | 'home' 
-  | 'products' 
-  | 'categories' 
-  | 'product-detail' 
-  | 'cart' 
-  | 'checkout' 
-  | 'order-confirmation' 
-  | 'track' 
-  | 'contact' 
-  | 'about' 
+export type AppView =
+  | 'home'
+  | 'products'
+  | 'categories'
+  | 'product-detail'
+  | 'cart'
+  | 'checkout'
+  | 'order-confirmation'
+  | 'track'
+  | 'contact'
+  | 'about'
   | 'admin';
