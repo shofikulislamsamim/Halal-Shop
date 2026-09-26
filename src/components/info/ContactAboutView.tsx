@@ -75,7 +75,7 @@ export const ContactAboutView: React.FC<ContactAboutViewProps> = ({ initialTab =
               সরাসরি হেল্পলাইন
             </h3>
             <p className="text-stone-500 text-xs leading-relaxed mb-4">
-              সকাল ৯:০০ টা থেকে রাত ১০:০০ টা পর্যন্ত আমাদের কাস্টমার প্রতিনিধিকে কল করতে পারেন।
+              {settings.supportHours || settings.businessHours || 'আমাদের নির্ধারিত সাপোর্ট সময়ে কাস্টমার প্রতিনিধির সাথে যোগাযোগ করতে পারেন।'}
             </p>
             <div className="font-mono font-bold text-stone-900 text-sm mb-4">
               {settings.contactNumber}
@@ -149,7 +149,7 @@ export const ContactAboutView: React.FC<ContactAboutViewProps> = ({ initialTab =
               ক্যাশ অন ডেলিভারি সুবিধা
             </h3>
             <p className="text-stone-500 text-xs leading-relaxed">
-              পণ্য হাতে পেয়ে দেখে টাকা দেওয়ার সুযোগ। ঢাকা ও ঢাকার বাইরে সকল জেলা ও উপজেলায় ডেলিভারি।
+              পণ্য হাতে পেয়ে দেখে টাকা দেওয়ার সুযোগ। {settings.deliveryCoverage || 'ডেলিভারি কভারেজ ও আনুমানিক সময় প্রশাসনিক সেটিংস অনুযায়ী প্রযোজ্য।'}
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export const ContactAboutView: React.FC<ContactAboutViewProps> = ({ initialTab =
               সহজ পরিবর্তন নীতিমালা
             </h3>
             <p className="text-stone-500 text-xs leading-relaxed">
-              পণ্য প্রাপ্তির ৩ দিনের মধ্যে কোনো ত্রুটি ধরা পড়লে কোনো অতিরিক্ত চার্জ ছাড়াই দ্রুত রিপ্লেসমেন্ট।
+              {settings.returnPolicy || 'রিটার্ন বা রিপ্লেসমেন্টের বিস্তারিত তথ্য নিচের নীতিমালা অংশে দেখুন।'}
             </p>
           </div>
         </div>
