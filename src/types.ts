@@ -13,6 +13,7 @@ export interface StructuredAddress {
   area?: string;
   roadBlockSector?: string;
   houseFlat?: string;
+  landmark?: string;
   // Shared
   detailedAddress: string;
   formattedFullAddress: string;
