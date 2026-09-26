@@ -180,3 +180,18 @@ export async function supabaseSignOut(token: string | null) {
     // Ignore remote logout errors; local session is still cleared.
   }
 }
+
+
+export async function supabaseUploadProductImage(file: File, path: string): Promise<string> {
+  if (!isSupabaseConfigured) throw new Error('Supabase is not configured.');
+  const token = getSupabaseAccessToken();
+  if (!token) throw new Error('Admin session is not available.');
+  const safePath = path.replace(/^\/+/, '').replace(/[^a-zA-Z0-9._\/-]/g, '-');
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/object/halal-products/${safePath}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${token}`, 'x-upsert': 'true', 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  if (!response.ok) throw new Error(await response.text() || 'Image upload failed.');
+  return `${SUPABASE_URL}/storage/v1/object/public/halal-products/${safePath}`;
+}
