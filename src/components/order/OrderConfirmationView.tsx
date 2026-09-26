@@ -53,7 +53,9 @@ export const OrderConfirmationView: React.FC = () => {
           অর্ডার সফলভাবে গ্রহণ করা হয়েছে!
         </h1>
         <p className="text-stone-600 text-xs sm:text-sm max-w-lg mx-auto mb-6">
-          ধন্যবাদ {order.customerName}! আপনার অর্ডারটি আমাদের ডাটাবেজে রেকর্ড করা হয়েছে। খুব শীঘ্রই আমাদের প্রতিনিধি আপনাকে ফোন করে অর্ডারটি নিশ্চিত করবেন।
+          {settings.orderConfirmationMessage
+            ? settings.orderConfirmationMessage.replace(/\{customerName\}/g, order.customerName)
+            : `ধন্যবাদ ${order.customerName}! আপনার অর্ডারটি আমাদের ডাটাবেজে রেকর্ড করা হয়েছে। খুব শীঘ্রই আমাদের প্রতিনিধি আপনাকে ফোন করে অর্ডারটি নিশ্চিত করবেন।`}
         </p>
 
         {/* Order ID Badge */}
