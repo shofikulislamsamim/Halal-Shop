@@ -56,6 +56,7 @@ export const AdminDashboard: React.FC = () => {
     updateCategory,
     deleteCategory,
     reorderCategory,
+    toggleCategoryStatus,
     updateOrderStatus,
     updateOrderAmount,
     updateOrderDelivery,
