@@ -84,7 +84,7 @@ const AppContent: React.FC = () => {
       }
       tag.setAttribute('content', content);
     });
-  }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle]);
+  }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle, settings.seoTitle, settings.seoDescription, settings.canonicalUrl, settings.googleSiteVerification, settings.ogTitle, settings.ogDescription, settings.ogImageUrl, settings.logoUrl]);
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] text-stone-900 selection:bg-emerald-100 selection:text-emerald-900">
