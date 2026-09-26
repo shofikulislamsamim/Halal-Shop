@@ -7,6 +7,7 @@ import {
   OrderStatus,
   WebsiteSettings,
   AppView,
+  ProductStockMovement,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -74,7 +75,8 @@ interface ShopContextType {
   getCategoryWithDescendants: (categoryId: string) => string[];
   addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
   updateProduct: (id: string, product: Partial<Product>) => Promise<boolean>;
-  adjustProductStock: (productId: string, delta: number) => Promise<boolean>;
+  adjustProductStock: (productId: string, delta: number, reason?: string, note?: string) => Promise<boolean>;
+  getProductStockHistory: (productId: string, limit?: number) => Promise<ProductStockMovement[]>;
   deleteProduct: (id: string) => Promise<boolean>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<{ success: boolean; category?: Category; message?: string }>;
   updateCategory: (id: string, category: Partial<Category>) => Promise<{ success: boolean; message?: string }>;
@@ -1270,22 +1272,74 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const adjustProductStock = async (productId: string, delta: number): Promise<boolean> => {
+  const adjustProductStock = async (
+    productId: string,
+    delta: number,
+    reason = 'manual_adjustment',
+    note?: string
+  ): Promise<boolean> => {
     if (!Number.isInteger(delta) || delta === 0) return false;
-    const target=products.find(p=>p.id===productId); if(!target) return false;
-    if(!isUuid(productId)){
-      const nextStock=Math.max(0,target.stock+delta);
-      setProducts(prev=>prev.map(p=>p.id===productId?{...p,stock:nextStock}:p));
-      showToast(`"${target.nameBn}" স্টক ${delta>0?'বাড়ানো':'কমানো'} হয়েছে`); return true;
+    const target = products.find((p) => p.id === productId);
+    if (!target) return false;
+
+    if (!isUuid(productId)) {
+      const nextStock = Math.max(0, target.stock + delta);
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, stock: nextStock } : p));
+      showToast(`"${target.nameBn}" স্টক ${delta > 0 ? 'বাড়ানো' : 'কমানো'} হয়েছে`);
+      return true;
     }
-    try{
-      const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
-      const remote=await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_stock',{method:'POST',token,body:{p_product_id:productId,p_delta:delta}});
-      const nextStock=Number(typeof remote==='number'?remote:remote?.stock??remote?.[0]?.stock);
-      if(!Number.isFinite(nextStock)||nextStock<0) throw new Error('Invalid stock response.');
-      setProducts(prev=>prev.map(p=>p.id===productId?{...p,stock:nextStock}:p));
-      showToast(`"${target.nameBn}" স্টক ${delta>0?'বাড়ানো':'কমানো'} হয়েছে`); return true;
-    }catch(error){console.error('Inventory adjustment failed:',error);showToast('স্টক আপডেট করা যায়নি। আবার চেষ্টা করুন।');return false;}
+
+    try {
+      const token = getSupabaseAccessToken();
+      if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/admin_adjust_halal_product_stock_with_history', {
+        method: 'POST',
+        token,
+        body: {
+          p_product_id: productId,
+          p_delta: delta,
+          p_reason: reason,
+          p_note: note || null,
+        },
+      });
+      const nextStock = Number(remote?.stock ?? remote?.[0]?.stock);
+      if (!Number.isFinite(nextStock) || nextStock < 0) throw new Error('Invalid stock response.');
+      setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, stock: nextStock } : p));
+      showToast(`"${target.nameBn}" স্টক ${delta > 0 ? 'বাড়ানো' : 'কমানো'} হয়েছে`);
+      return true;
+    } catch (error) {
+      console.error('Inventory adjustment failed:', error);
+      showToast('স্টক আপডেট করা যায়নি। আবার চেষ্টা করুন।');
+      return false;
+    }
+  };
+
+  const getProductStockHistory = async (productId: string, limit = 20): Promise<ProductStockMovement[]> => {
+    if (!isUuid(productId) || !isSupabaseConfigured) return [];
+    const token = getSupabaseAccessToken();
+    if (!token) return [];
+    try {
+      const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+      const rows = await supabaseFetch<any[]>(
+        `/rest/v1/halal_product_stock_movements?select=id,product_id,previous_stock,delta,new_stock,reason,note,changed_by,created_at&product_id=eq.${encodeURIComponent(productId)}&order=created_at.desc&limit=${safeLimit}`,
+        { token }
+      );
+      if (!Array.isArray(rows)) return [];
+      return rows.map((row) => ({
+        id: row.id,
+        productId: row.product_id,
+        previousStock: Number(row.previous_stock || 0),
+        delta: Number(row.delta || 0),
+        newStock: Number(row.new_stock || 0),
+        reason: row.reason || 'manual_adjustment',
+        note: row.note || undefined,
+        changedBy: row.changed_by || undefined,
+        createdAt: row.created_at,
+      }));
+    } catch (error) {
+      console.error('Stock history load failed:', error);
+      return [];
+    }
   };
   // Settings update
   const updateSettings = async (newSettings: Partial<WebsiteSettings>): Promise<boolean> => {
@@ -1422,6 +1476,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addProduct,
         updateProduct,
         adjustProductStock,
+        getProductStockHistory,
         deleteProduct,
         addCategory,
         updateCategory,
