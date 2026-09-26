@@ -87,6 +87,7 @@ export const CheckoutView: React.FC = () => {
 
   const validateForm = (): boolean => {
     setHasValidated(true);
+    setSubmitError('');
     let valid = true;
 
     if (!customerName.trim() || customerName.trim().length < 2) {
