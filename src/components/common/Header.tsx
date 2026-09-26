@@ -85,49 +85,7 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-30 bg-white border-b border-stone-200/90 shadow-2xs">
       {/* 1. Top Announcement Bar */}
       {announcementVisible && (
-        <div className="bg-emerald-900 text-emerald-100 text-xs py-1.5 px-3 sm:px-6">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <a
-              href={settings.announcementLink || '#'}
-              onClick={(e) => { if (!settings.announcementLink) e.preventDefault(); }}
-              className="w-full text-center font-semibold hover:text-amber-200 transition-colors"
-            >
-              {settings.announcementText}
-            </a>
-          </div>
-        </div>
-      )}
-      <div className="bg-emerald-900 text-emerald-100 text-xs py-1.5 px-3 sm:px-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 font-medium text-emerald-50">
-              <Truck className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-              <span>সারাদেশে {settings.cashOnDeliveryEnabled === false ? 'অনলাইন অর্ডার' : 'ক্যাশ অন ডেলিভারি'}</span>
-            </span>
-            <span className="hidden sm:inline text-emerald-600">|</span>
-            <span className="hidden sm:inline text-emerald-200">
-              {settings.freeDeliveryThreshold > 0 ? `৳ ${settings.freeDeliveryThreshold} টাকার অর্ডারে ফ্রি ডেলিভারি` : 'ডেলিভারি চার্জ প্রযোজ্য'}
-              {settings.businessHours ? ` • ${settings.businessHours}` : ''}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <a
-              href={whatsAppUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 transition-colors font-medium text-[11px] sm:text-xs"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">সহায়তা:</span>
-              <span>{settings.contactNumber}</span>
-            </a>
-
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Header Bar */}
+        {/* 2. Main Header Bar */}
       <div className="max-w-6xl mx-auto px-4 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           {/* Logo */}
