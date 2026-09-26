@@ -93,12 +93,15 @@ export const Footer: React.FC = () => {
                 ['Instagram', settings.instagramPage, Instagram],
                 ['YouTube', settings.youtubeChannel, Youtube],
                 ['TikTok', settings.tiktokPage, Music2],
-              ].filter(([, url]) => Boolean(url)).map(([label, url, Icon]) => (
-                <a key={label as string} href={url as string} target="_blank" rel="noopener noreferrer" aria-label={label as string}
-                  className="w-8 h-8 rounded-lg border border-stone-700 bg-stone-800 hover:bg-emerald-800 text-stone-300 hover:text-white flex items-center justify-center transition-colors">
-                  <Icon className="w-4 h-4" />
-                </a>
-              ))}
+              ].filter(([, url]) => Boolean(url)).map(([label, url, Icon]) => {
+                const SocialIcon = Icon as React.ElementType;
+                return (
+                  <a key={label as string} href={url as string} target="_blank" rel="noopener noreferrer" aria-label={label as string}
+                    className="w-8 h-8 rounded-lg border border-stone-700 bg-stone-800 hover:bg-emerald-800 text-stone-300 hover:text-white flex items-center justify-center transition-colors">
+                    <SocialIcon className="w-4 h-4" />
+                  </a>
+                );
+              })}
             </div>
           </div>
 
