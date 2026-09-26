@@ -46,6 +46,7 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+  const isNewProduct = !product.id;
 
   const discount = useMemo(() => {
     const regular = Number(form.regularPrice || 0);
@@ -68,9 +69,16 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
     if (form.sku && products.some((p) => p.id !== form.id && p.sku?.trim().toLowerCase() === form.sku?.trim().toLowerCase())) return showToast('এই SKU ইতিমধ্যে ব্যবহৃত হয়েছে।');
 
     const finalForm = { ...form, tags: normalizeList(tagInput), seoKeywords: normalizeList(keywordInput), slug: form.slug?.trim() || slugify(form.nameEn || form.nameBn) };
+    // Existing product stock is changed only from Inventory so every stock change
+    // goes through the stock-history workflow. New products may set their opening stock here.
+    const savePayload = isNewProduct
+      ? finalForm
+      : { ...finalForm, stock: product.stock ?? form.stock };
     setSaving(true);
     try {
-      const ok = form.id ? await updateProduct(form.id, finalForm) : await addProduct(finalForm as Omit<Product, 'id'>);
+      const ok = isNewProduct
+        ? await addProduct(savePayload as Omit<Product, 'id'>)
+        : await updateProduct(product.id as string, savePayload);
       if (ok) onSaved();
     } finally {
       setSaving(false);
@@ -168,7 +176,17 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
             <div><label className={labelClass}>Selling Price (৳) *</label><input type="number" min="0" step="0.01" className={inputClass} value={form.price} onChange={e=>set('price',Number(e.target.value))}/></div>
             <div><label className={labelClass}>Regular Price (৳)</label><input type="number" min="0" step="0.01" className={inputClass} value={form.regularPrice ?? ''} onChange={e=>set('regularPrice',e.target.value===''?undefined:Number(e.target.value))}/></div>
             <div><label className={labelClass}>Discount</label><div className="h-[42px] flex items-center px-3 rounded-xl bg-emerald-50 text-emerald-800 font-black text-sm">{discount ? discount+'% OFF' : 'No discount'}</div></div>
-            <div><label className={labelClass}>Stock</label><input type="number" min="0" className={inputClass} value={form.stock} onChange={e=>set('stock',Math.max(0,Number(e.target.value)))}/></div>
+            <div>
+              <label className={labelClass}>Stock {isNewProduct ? '(Opening Stock)' : '(Inventory থেকে পরিবর্তন করুন)'}</label>
+              <input
+                type="number"
+                min="0"
+                className={inputClass + (isNewProduct ? '' : ' bg-stone-100 text-stone-500 cursor-not-allowed')}
+                value={form.stock}
+                disabled={!isNewProduct}
+                onChange={e=>set('stock',Math.max(0,Number(e.target.value)))}
+              />
+            </div>
             <div><label className={labelClass}>Low Stock Alert</label><input type="number" min="0" className={inputClass} value={form.lowStockThreshold ?? 3} onChange={e=>set('lowStockThreshold',Number(e.target.value))}/></div>
             <div><label className={labelClass}>Unit</label><input className={inputClass} value={form.unit||''} onChange={e=>set('unit',e.target.value)} placeholder="টি / kg / box"/></div>
             <div><label className={labelClass}>Weight</label><input type="number" min="0" step="0.01" className={inputClass} value={form.weight ?? ''} onChange={e=>set('weight',e.target.value===''?undefined:Number(e.target.value))}/></div>
