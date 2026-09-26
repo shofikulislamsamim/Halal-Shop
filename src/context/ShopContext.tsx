@@ -557,6 +557,25 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     orderNote?: string;
     idempotencyKey?: string;
   }): Promise<Order> => {
+    if (settings.storeStatus && settings.storeStatus !== 'open') {
+      throw new Error(
+        settings.storeStatus === 'maintenance'
+          ? (settings.maintenanceMessage || 'ওয়েবসাইট বর্তমানে রক্ষণাবেক্ষণে আছে।')
+          : (settings.storeClosedMessage || 'বর্তমানে দোকান বন্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।')
+      );
+    }
+    if (settings.cashOnDeliveryEnabled === false) {
+      throw new Error('বর্তমানে অর্ডারের জন্য Cash on Delivery সক্রিয় নেই।');
+    }
+    if (Number(settings.minimumOrderAmount || 0) > 0 && orderData.total < Number(settings.minimumOrderAmount)) {
+      throw new Error(`ন্যূনতম অর্ডার মূল্য ${settings.minimumOrderAmount} টাকা।`);
+    }
+    if (Number(settings.codMinimumOrder || 0) > 0 && orderData.total < Number(settings.codMinimumOrder)) {
+      throw new Error(`Cash on Delivery-এর জন্য ন্যূনতম অর্ডার ${settings.codMinimumOrder} টাকা।`);
+    }
+    if (Number(settings.codMaximumOrder || 0) > 0 && orderData.total > Number(settings.codMaximumOrder)) {
+      throw new Error(`Cash on Delivery-এর সর্বোচ্চ অর্ডার ${settings.codMaximumOrder} টাকা।`);
+    }
     if (!isSupabaseConfigured) {
       throw new Error('অর্ডার নেওয়ার জন্য Supabase সংযোগ প্রয়োজন।');
     }
