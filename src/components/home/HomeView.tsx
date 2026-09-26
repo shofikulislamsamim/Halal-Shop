@@ -12,6 +12,8 @@ export const HomeView: React.FC = () => {
 
   const featuredProducts = products.filter((p) => p.isFeatured && p.isActive).slice(0, Math.max(0, settings.featuredProductsCount ?? 8));
   const popularProducts = products.filter((p) => p.isPopular && p.isActive).slice(0, Math.max(0, settings.popularProductsCount ?? 4));
+  const newArrivalProducts = products.filter((p) => p.isNewArrival && p.isActive).slice(0, Math.max(0, settings.newArrivalProductsCount ?? 4));
+  const bestSellerProducts = products.filter((p) => p.isBestSeller && p.isActive).slice(0, Math.max(0, settings.bestSellerProductsCount ?? 4));
 
   const SectionHeading = ({ icon, title, subtitle }: {
     icon: React.ReactNode; title: string; subtitle: string;
@@ -58,11 +60,29 @@ export const HomeView: React.FC = () => {
         </section>
       )}
 
+      {newArrivalProducts.length > 0 && (
+        <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <SectionHeading icon={<Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />} title="নতুন পণ্য" subtitle="সদ্য যুক্ত হওয়া পণ্যগুলো দেখুন" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
+            {newArrivalProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+          </div>
+        </section>
+      )}
+
       {popularProducts.length > 0 && (
         <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
           <SectionHeading icon={<Flame className="w-4 h-4 sm:w-5 sm:h-5 text-rose-700" />} title="জনপ্রিয় পণ্য" subtitle="গ্রাহকদের পছন্দের পণ্যগুলো একসাথে" />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
             {popularProducts.map((product) => <ProductCard key={product.id} product={product} />)}
+          </div>
+        </section>
+      )}
+
+      {bestSellerProducts.length > 0 && (
+        <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
+          <SectionHeading icon={<Flame className="w-4 h-4 sm:w-5 sm:h-5" />} title="বেস্ট সেলার" subtitle="সবচেয়ে বেশি বিক্রি হওয়া পণ্য" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-5">
+            {bestSellerProducts.map((product) => <ProductCard key={product.id} product={product} />)}
           </div>
         </section>
       )}
