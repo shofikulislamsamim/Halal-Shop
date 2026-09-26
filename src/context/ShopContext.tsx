@@ -8,6 +8,7 @@ import {
   WebsiteSettings,
   AppView,
   ProductStockMovement,
+  ProductVariant,
 } from '../types';
 import {
   INITIAL_PRODUCTS,
@@ -95,10 +96,10 @@ interface ShopContextType {
   setIsCartDrawerOpen: (open: boolean) => void;
   openCartDrawer: () => void;
   closeCartDrawer: () => void;
-  addToCart: (product: Product, quantity?: number) => void;
-  buyNow: (product: Product, quantity?: number) => void;
-  updateCartQuantity: (productId: string, quantity: number) => void;
-  removeFromCart: (productId: string) => void;
+  addToCart: (product: Product, quantity?: number, variant?: ProductVariant) => void;
+  buyNow: (product: Product, quantity?: number, variant?: ProductVariant) => void;
+  updateCartQuantity: (productId: string, quantity: number, variantId?: string) => void;
+  removeFromCart: (productId: string, variantId?: string) => void;
   clearCart: () => void;
 
   // Buy Now direct item
@@ -458,60 +459,49 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Cart operations
-  const addToCart = (product: Product, quantity = 1) => {
+  const getCartItemPrice = (item: CartItem) => item.variantPrice ?? item.product.price;
+
+  const addToCart = (product: Product, quantity = 1, variant?: ProductVariant) => {
     const currentProduct = products.find((p) => p.id === product.id) || product;
+    const selectedVariant = variant ? currentProduct.variants?.find((v) => v.id === variant.id) : undefined;
+    const effectiveVariant = selectedVariant || (currentProduct.variants?.length === 1 ? currentProduct.variants[0] : undefined);
+    const availableStock = effectiveVariant ? effectiveVariant.stock : currentProduct.stock;
     const requestedQuantity = Math.max(1, Math.floor(quantity));
-
-    if (!currentProduct.isActive || currentProduct.stock <= 0) {
-      showToast('দুঃখিত, এই পণ্যটি বর্তমানে স্টকে নেই।');
-      return;
-    }
-
+    if (!currentProduct.isActive || availableStock <= 0) { showToast('দুঃখিত, এই পণ্যটি বর্তমানে স্টকে নেই।'); return; }
+    if (currentProduct.variants?.length && !effectiveVariant) { showToast('অর্ডার করার আগে একটি ভ্যারিয়েন্ট নির্বাচন করুন।'); return; }
     setCart((prev) => {
-      const existingIndex = prev.findIndex((item) => item.product.id === currentProduct.id);
+      const existingIndex = prev.findIndex((item) => item.product.id === currentProduct.id && item.variantId === effectiveVariant?.id);
       if (existingIndex > -1) {
         const updated = [...prev];
-        const newQty = Math.min(
-          updated[existingIndex].quantity + requestedQuantity,
-          currentProduct.stock
-        );
-        updated[existingIndex] = { product: currentProduct, quantity: newQty };
+        updated[existingIndex] = { ...updated[existingIndex], product: currentProduct, quantity: Math.min(updated[existingIndex].quantity + requestedQuantity, availableStock), variantId: effectiveVariant?.id, variantName: effectiveVariant?.name, variantPrice: effectiveVariant?.price };
         return updated;
       }
-      return [...prev, { product: currentProduct, quantity: Math.min(requestedQuantity, currentProduct.stock) }];
+      return [...prev, { product: currentProduct, quantity: Math.min(requestedQuantity, availableStock), variantId: effectiveVariant?.id, variantName: effectiveVariant?.name, variantPrice: effectiveVariant?.price }];
     });
-
-    showToast(`"${currentProduct.nameBn}" কার্টে যোগ করা হয়েছে!`);
+    showToast(`"${currentProduct.nameBn}"${effectiveVariant ? ` — ${effectiveVariant.name}` : ''} কার্টে যোগ করা হয়েছে!`);
   };
 
-  const buyNow = (product: Product, quantity = 1) => {
-    if (product.stock <= 0) {
-      showToast('দুঃখিত, এই পণ্যটি স্টকে নেই!');
-      return;
-    }
-    // Set direct checkout item so user can buy this immediately
-    setDirectCheckoutItem({ product, quantity });
+  const buyNow = (product: Product, quantity = 1, variant?: ProductVariant) => {
+    const effectiveVariant = variant || (product.variants?.length === 1 ? product.variants[0] : undefined);
+    const availableStock = effectiveVariant ? effectiveVariant.stock : product.stock;
+    if (availableStock <= 0) { showToast('দুঃখিত, এই পণ্যটি স্টকে নেই!'); return; }
+    if (product.variants?.length && !effectiveVariant) { showToast('অর্ডার করার আগে একটি ভ্যারিয়েন্ট নির্বাচন করুন।'); return; }
+    setDirectCheckoutItem({ product, quantity: Math.min(Math.max(1, Math.floor(quantity)), availableStock), variantId: effectiveVariant?.id, variantName: effectiveVariant?.name, variantPrice: effectiveVariant?.price });
     navigateTo('checkout');
   };
 
-  const updateCartQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-    setCart((prev) =>
-      prev.map((item) => {
-        if (item.product.id === productId) {
-          const clampedQty = Math.min(quantity, item.product.stock);
-          return { ...item, quantity: clampedQty };
-        }
-        return item;
-      })
-    );
+  const updateCartQuantity = (productId: string, quantity: number, variantId?: string) => {
+    if (quantity <= 0) { removeFromCart(productId, variantId); return; }
+    setCart((prev) => prev.map((item) => {
+      if (item.product.id !== productId || item.variantId !== variantId) return item;
+      const variant = item.variantId ? item.product.variants?.find((v) => v.id === item.variantId) : undefined;
+      const availableStock = variant ? variant.stock : item.product.stock;
+      return { ...item, quantity: Math.min(quantity, availableStock) };
+    }));
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.product.id !== productId));
+  const removeFromCart = (productId: string, variantId?: string) => {
+    setCart((prev) => prev.filter((item) => !(item.product.id === productId && item.variantId === variantId)));
     showToast('পণ্যটি কার্ট থেকে সরানো হয়েছে');
   };
 
@@ -520,7 +510,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.variantPrice ?? item.product.price) * item.quantity, 0);
 
   // Place Order
   const mapRemoteOrder = (remote: any): Order => {
@@ -542,6 +532,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       address: remote.address as Order['address'],
       items: remoteItems.map((item: any) => ({
         productId: item.product_id,
+        variantId: item.variant_id || undefined,
+        variantName: item.variant_name || undefined,
         nameBn: item.product_name,
         price: Number(item.unit_price || 0),
         quantity: Number(item.quantity || 0),
@@ -599,6 +591,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       address: orderData.address,
       items: orderData.items.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
       })),
       // Pricing, delivery, stock and duplicate-submission protection are handled server-side.
@@ -623,7 +616,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProducts((prev) =>
         prev.map((product) => {
           const quantity = stockByProduct.get(product.id);
-          return quantity ? { ...product, stock: Math.max(0, product.stock - quantity) } : product;
+          if (!quantity || product.variants?.length) return product;
+          return { ...product, stock: Math.max(0, product.stock - quantity) };
         })
       );
 
