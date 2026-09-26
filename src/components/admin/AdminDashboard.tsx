@@ -561,7 +561,6 @@ export const AdminDashboard: React.FC = () => {
   const handleRefreshOrders = async () => {
     if (isRefreshingOrders) return;
     setIsRefreshingOrders(true);
-    setOrderPage(1);
     try {
       await refreshOrders({
         status: orderStatusFilter,
@@ -918,7 +917,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {[
           ['মোট অর্ডার', orders.length, 'text-stone-900'],
-          ['আজকের অর্ডার', todayOrders.length, 'text-sky-700'],
+          ['আজকের অর্ডার', todayOrders, 'text-sky-700'],
           ['পেন্ডিং', pendingCount, 'text-amber-700'],
           ['প্রসেসিং', processingCount, 'text-indigo-700'],
           ['ডেলিভারড', deliveredCount, 'text-emerald-700'],
