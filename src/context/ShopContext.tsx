@@ -123,6 +123,7 @@ interface ShopContextType {
   getOrderByIdAndPhone: (orderId: string, phone: string) => Promise<Order | undefined>;
   getOrdersByPhone: (phone: string) => Promise<Order[]>;
   getOrderStatusHistory: (orderId: string, phone?: string) => Promise<OrderStatusHistoryEntry[]>;
+  cancelCustomerOrder: (orderCode: string, phone: string) => Promise<boolean>;
   refreshOrders: (filters?: OrderListFilters, append?: boolean) => Promise<boolean>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<OrderStatus | null>;
   updateOrderAmount: (orderId: string, total: number) => Promise<number | null>;
@@ -732,6 +733,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Order status history lookup failed:', error);
       return [];
+    }
+  };
+
+  const cancelCustomerOrder = async (orderCode: string, phone: string): Promise<boolean> => {
+    const cleanCode = orderCode.trim().toUpperCase();
+    const cleanPhone = phone.replace(/\\s/g, '').replace(/\\+/g, '').replace(/-/g, '');
+    if (!cleanCode || cleanPhone.length < 11) {
+      showToast('অর্ডার নম্বর ও সঠিক মোবাইল নাম্বার দিন।');
+      return false;
+    }
+    if (!isSupabaseConfigured) {
+      const target = orders.find((order) =>
+        order.id.toUpperCase() === cleanCode &&
+        order.mobile.replace(/\\s/g, '').replace(/\\+/g, '').replace(/-/g, '') === cleanPhone
+      );
+      if (!target || !['pending', 'confirmed'].includes(target.status)) {
+        showToast('এই অর্ডারটি এখন বাতিল করা যাবে না।');
+        return false;
+      }
+      setOrders((prev) => prev.map((order) => order.id === target.id ? { ...order, status: 'cancelled' as OrderStatus } : order));
+      showToast('অর্ডারটি বাতিল করা হয়েছে।');
+      return true;
+    }
+    try {
+      const remote = await supabaseFetch<any>('/rest/v1/rpc/customer_cancel_halal_order', {
+        method: 'POST',
+        body: { p_order_code: cleanCode, p_mobile: cleanPhone },
+      });
+      if (!remote?.success) throw new Error(remote?.message || 'Order cancellation failed.');
+      setOrders((prev) => prev.map((order) => order.id.toUpperCase() === cleanCode ? { ...order, status: 'cancelled' as OrderStatus } : order));
+      setLastCreatedOrder((prev) => prev && prev.id.toUpperCase() === cleanCode ? { ...prev, status: 'cancelled' as OrderStatus } : prev);
+      showToast('অর্ডারটি সফলভাবে বাতিল করা হয়েছে।');
+      return true;
+    } catch (error) {
+      console.error('Customer order cancellation failed:', error);
+      const message = error instanceof Error ? error.message : '';
+      if (/time limit|সময়|ক্যানসেল|cancel/i.test(message)) showToast(message);
+      else showToast('অর্ডারটি বাতিল করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।');
+      return false;
     }
   };
 
@@ -1569,6 +1609,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getOrderByIdAndPhone,
         getOrdersByPhone,
         getOrderStatusHistory,
+        cancelCustomerOrder,
         refreshOrders,
         updateOrderStatus,
         updateOrderAmount,
