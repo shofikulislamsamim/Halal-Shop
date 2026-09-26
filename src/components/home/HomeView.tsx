@@ -8,10 +8,10 @@ import { ProductCard } from '../products/ProductCard';
 import { ArrowRight, Sparkles, Flame } from 'lucide-react';
 
 export const HomeView: React.FC = () => {
-  const { products, navigateTo } = useShop();
+  const { products, navigateTo, settings } = useShop();
 
-  const featuredProducts = products.filter((p) => p.isFeatured && p.isActive).slice(0, 8);
-  const popularProducts = products.filter((p) => p.isPopular && p.isActive).slice(0, 4);
+  const featuredProducts = products.filter((p) => p.isFeatured && p.isActive).slice(0, Math.max(0, settings.featuredProductsCount ?? 8));
+  const popularProducts = products.filter((p) => p.isPopular && p.isActive).slice(0, Math.max(0, settings.popularProductsCount ?? 4));
 
   const SectionHeading = ({ icon, title, subtitle }: {
     icon: React.ReactNode; title: string; subtitle: string;
@@ -36,7 +36,7 @@ export const HomeView: React.FC = () => {
     <div className="pb-16">
       <HeroSection />
       <TrustSection />
-      <CategorySection />
+      {settings.categorySectionEnabled !== false && <CategorySection />}
 
       <section aria-labelledby="halal-shop-intro-title" className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
         <div className="rounded-2xl border border-emerald-100 bg-white p-5 sm:p-7 shadow-sm">
