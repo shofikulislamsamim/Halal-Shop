@@ -27,23 +27,27 @@ export const CheckoutView: React.FC = () => {
   const checkoutItems: OrderItem[] = directCheckoutItem
     ? [{
         productId: directCheckoutItem.product.id,
+        variantId: directCheckoutItem.variantId,
+        variantName: directCheckoutItem.variantName,
         nameBn: directCheckoutItem.product.nameBn,
-        price: directCheckoutItem.product.price,
+        price: directCheckoutItem.variantPrice ?? directCheckoutItem.product.price,
         quantity: directCheckoutItem.quantity,
-        total: directCheckoutItem.product.price * directCheckoutItem.quantity,
+        total: (directCheckoutItem.variantPrice ?? directCheckoutItem.product.price) * directCheckoutItem.quantity,
         imageUrl: directCheckoutItem.product.imageUrl,
       }]
     : cart.map((i) => ({
         productId: i.product.id,
+        variantId: i.variantId,
+        variantName: i.variantName,
         nameBn: i.product.nameBn,
-        price: i.product.price,
+        price: i.variantPrice ?? i.product.price,
         quantity: i.quantity,
-        total: i.product.price * i.quantity,
+        total: (i.variantPrice ?? i.product.price) * i.quantity,
         imageUrl: i.product.imageUrl,
       }));
 
   const itemsSubtotal = directCheckoutItem
-    ? directCheckoutItem.product.price * directCheckoutItem.quantity
+    ? (directCheckoutItem.variantPrice ?? directCheckoutItem.product.price) * directCheckoutItem.quantity
     : cartSubtotal;
 
   const [customerName, setCustomerName] = useState('');
