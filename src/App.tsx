@@ -86,6 +86,47 @@ const AppContent: React.FC = () => {
     });
   }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle, settings.seoTitle, settings.seoDescription, settings.canonicalUrl, settings.googleSiteVerification, settings.ogTitle, settings.ogDescription, settings.ogImageUrl, settings.logoUrl]);
 
+  useEffect(() => {
+    const id = settings.googleAnalyticsId?.trim();
+    if (!id) return;
+    const scriptId = 'halal-shop-google-analytics';
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+      document.head.appendChild(script);
+    }
+    const w = window as Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
+    w.dataLayer = w.dataLayer || [];
+    w.gtag = w.gtag || function(...args: unknown[]) { w.dataLayer?.push(args); };
+    w.gtag('js', new Date());
+    w.gtag('config', id);
+    return () => {
+      // Keep the script for the session, but stop sending events if the setting is cleared.
+      if (!settings.googleAnalyticsId?.trim()) script?.remove();
+    };
+  }, [settings.googleAnalyticsId]);
+
+  useEffect(() => {
+    const pixelId = settings.facebookPixelId?.trim();
+    if (!pixelId) return;
+    const existing = document.getElementById('halal-shop-facebook-pixel');
+    if (existing) return;
+    const script = document.createElement('script');
+    script.id = 'halal-shop-facebook-pixel';
+    script.text = `
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+      (window, document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init','${pixelId}');fbq('track','PageView');
+    `;
+    document.head.appendChild(script);
+  }, [settings.facebookPixelId]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] text-stone-900 selection:bg-emerald-100 selection:text-emerald-900">
       {/* Global Header & Navigation */}
