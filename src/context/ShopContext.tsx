@@ -365,7 +365,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
             contactNumber: remote.phone || prev.contactNumber,
             whatsappNumber: remote.whatsapp || prev.whatsappNumber,
             footerNotice: remote.about || prev.footerNotice,
-            ...(remote.delivery_settings || {}),
+            ...(remote.delivery_settings && typeof remote.delivery_settings === 'object' ? remote.delivery_settings : {}),
           }));
         }
       } catch (error) {
@@ -1377,6 +1377,15 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deliveryChargeDhaka: Math.max(0, Number(newSettings.deliveryChargeDhaka ?? settings.deliveryChargeDhaka ?? 0) || 0),
       deliveryChargeOutsideDhaka: Math.max(0, Number(newSettings.deliveryChargeOutsideDhaka ?? settings.deliveryChargeOutsideDhaka ?? 0) || 0),
       freeDeliveryThreshold: Math.max(0, Number(newSettings.freeDeliveryThreshold ?? settings.freeDeliveryThreshold ?? 0) || 0),
+      minimumOrderAmount: Math.max(0, Number(newSettings.minimumOrderAmount ?? settings.minimumOrderAmount ?? 0) || 0),
+      codMinimumOrder: Math.max(0, Number(newSettings.codMinimumOrder ?? settings.codMinimumOrder ?? 0) || 0),
+      codMaximumOrder: Math.max(0, Number(newSettings.codMaximumOrder ?? settings.codMaximumOrder ?? 0) || 0),
+      customerCancellationMinutes: Math.max(0, Math.floor(Number(newSettings.customerCancellationMinutes ?? settings.customerCancellationMinutes ?? 0) || 0)),
+      featuredProductsCount: Math.max(0, Math.floor(Number(newSettings.featuredProductsCount ?? settings.featuredProductsCount ?? 8) || 0)),
+      popularProductsCount: Math.max(0, Math.floor(Number(newSettings.popularProductsCount ?? settings.popularProductsCount ?? 8) || 0)),
+      newArrivalProductsCount: Math.max(0, Math.floor(Number(newSettings.newArrivalProductsCount ?? settings.newArrivalProductsCount ?? 8) || 0)),
+      bestSellerProductsCount: Math.max(0, Math.floor(Number(newSettings.bestSellerProductsCount ?? settings.bestSellerProductsCount ?? 8) || 0)),
+      cashOnDeliveryEnabled: true,
     };
 
     if (!nextSettings.shopName) {
@@ -1390,17 +1399,14 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Admin session is not available.');
       }
 
+      // Keep the existing JSON settings column backward-compatible while allowing
+      // the admin panel to manage the full storefront configuration.
       const deliverySettings = {
-        deliveryChargeDhaka: nextSettings.deliveryChargeDhaka,
-        deliveryChargeOutsideDhaka: nextSettings.deliveryChargeOutsideDhaka,
-        freeDeliveryThreshold: nextSettings.freeDeliveryThreshold,
-        heroTitle: nextSettings.heroTitle,
-        heroSubtitle: nextSettings.heroSubtitle,
+        ...nextSettings,
+        seoKeywords: nextSettings.seoKeywords || [],
         announcementText: nextSettings.announcementText || '',
         isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
-        tagline: nextSettings.tagline,
-        facebookPage: nextSettings.facebookPage,
-        shopAddress: nextSettings.shopAddress,
+        cashOnDeliveryEnabled: true,
       };
 
       const remoteSettings = await supabaseFetch<any[]>('/rest/v1/halal_store_settings?id=eq.true', {
