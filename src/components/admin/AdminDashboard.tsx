@@ -72,6 +72,7 @@ export const AdminDashboard: React.FC = () => {
   const [inventorySearch, setInventorySearch] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [stockEditorProductId, setStockEditorProductId] = useState<string | null>(null);
+  const [stockEditorVariantId, setStockEditorVariantId] = useState<string | null>(null);
   const [stockAdjustmentAmount, setStockAdjustmentAmount] = useState('1');
   const [stockAdjustmentMode, setStockAdjustmentMode] = useState<'add' | 'remove'>('add');
   const [stockAdjustmentReason, setStockAdjustmentReason] = useState('manual_adjustment');
@@ -81,18 +82,19 @@ export const AdminDashboard: React.FC = () => {
   const [isStockSaving, setIsStockSaving] = useState(false);
 
   const stockEditorProduct = products.find((product) => product.id === stockEditorProductId) || null;
+  const stockEditorVariant = stockEditorProduct?.variants?.find((variant) => variant.id === stockEditorVariantId) || null;
 
   useEffect(() => {
     if (!stockEditorProductId) { setStockHistory([]); return; }
     let cancelled = false;
     setIsStockHistoryLoading(true);
-    void getProductStockHistory(stockEditorProductId, 30).then((rows) => {
+    void getProductStockHistory(stockEditorProductId, 30, stockEditorVariantId || undefined).then((rows) => {
       if (!cancelled) setStockHistory(rows);
     }).finally(() => {
       if (!cancelled) setIsStockHistoryLoading(false);
     });
     return () => { cancelled = true; };
-  }, [stockEditorProductId]);
+  }, [stockEditorProductId, stockEditorVariantId]);
   // Login form state
   // Never prefill or expose a specific administrator email in the UI.
   const [adminEmail, setAdminEmail] = useState('');
@@ -1510,7 +1512,7 @@ export const AdminDashboard: React.FC = () => {
                       <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div className="min-w-0"><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn || '—'}</div></div></div></td>
                       <td className="p-3 font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</td>
                       <td className="p-3"><span className={'inline-flex px-2 py-1 rounded-full border text-[11px] font-bold ' + statusClass}>{statusText}</span></td>
-                      <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => { setStockEditorProductId(prod.id); setStockAdjustmentMode('remove'); setStockAdjustmentAmount('1'); setStockAdjustmentReason('manual_adjustment'); setStockAdjustmentNote(''); }} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button><button type="button" onClick={() => { setStockEditorProductId(prod.id); setStockAdjustmentMode('add'); setStockAdjustmentAmount('1'); setStockAdjustmentReason('restock'); setStockAdjustmentNote(''); }} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button></div></td>
+                      <td className="p-3 text-right"><div className="inline-flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => { setStockEditorProductId(prod.id); setStockEditorVariantId(null); setStockAdjustmentMode('remove'); setStockAdjustmentAmount('1'); setStockAdjustmentReason('manual_adjustment'); setStockAdjustmentNote(''); }} className="w-8 h-8 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" title="১ কমান">−</button><button type="button" onClick={() => { setStockEditorProductId(prod.id); setStockEditorVariantId(null); setStockAdjustmentMode('add'); setStockAdjustmentAmount('1'); setStockAdjustmentReason('restock'); setStockAdjustmentNote(''); }} className="w-8 h-8 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" title="১ বাড়ান">+</button></div></td>
                     </tr>;
                   })}
                 </tbody>
@@ -1543,10 +1545,20 @@ export const AdminDashboard: React.FC = () => {
         <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-[2px] flex items-center justify-center p-3 sm:p-5" role="dialog" aria-modal="true" aria-labelledby="stock-editor-title">
           <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl border border-stone-200">
             <div className="sticky top-0 z-10 bg-white border-b border-stone-200 px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
-              <div className="min-w-0"><h3 id="stock-editor-title" className="font-black text-stone-900">স্টক সমন্বয়</h3><p className="text-xs text-stone-500 truncate">{stockEditorProduct.nameBn} · বর্তমান {stockEditorProduct.stock} {stockEditorProduct.unit || 'টি'}</p></div>
-              <button type="button" onClick={() => setStockEditorProductId(null)} className="w-9 h-9 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-50" aria-label="স্টক সমন্বয় বন্ধ করুন">✕</button>
+              <div className="min-w-0"><h3 id="stock-editor-title" className="font-black text-stone-900">স্টক সমন্বয়</h3><p className="text-xs text-stone-500 truncate">{stockEditorProduct.nameBn} · {stockEditorVariant ? 'Variant: ' + stockEditorVariant.name + ' · বর্তমান ' + stockEditorVariant.stock : 'মোট বর্তমান ' + stockEditorProduct.stock} {stockEditorVariant?.unit || stockEditorProduct.unit || 'টি'}</p></div>
+              <button type="button" onClick={() => setStockEditorProductId(null); setStockEditorVariantId(null)} className="w-9 h-9 rounded-xl border border-stone-200 text-stone-500 hover:bg-stone-50" aria-label="স্টক সমন্বয় বন্ধ করুন">✕</button>
             </div>
             <div className="p-4 sm:p-5 space-y-5">
+              {stockEditorProduct.variants && stockEditorProduct.variants.length > 0 && (
+                <div>
+                  <label className="text-xs font-bold text-stone-700">Variant Inventory</label>
+                  <select value={stockEditorVariantId || ''} onChange={(e) => setStockEditorVariantId(e.target.value || null)} className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm">
+                    <option value="">মোট Product Stock (শুধু দেখুন)</option>
+                    {stockEditorProduct.variants.map((v) => <option key={v.id} value={v.id}>{v.name || 'Unnamed variant'} — {v.stock} {v.unit || stockEditorProduct.unit || 'টি'}</option>)}
+                  </select>
+                  {!stockEditorVariant && <p className="text-[11px] text-amber-700 mt-1.5">Variant-যুক্ত পণ্যের মোট stock সব Variant stock-এর যোগফল। স্টক পরিবর্তনের জন্য একটি Variant নির্বাচন করুন।</p>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => setStockAdjustmentMode('add')} className={'rounded-xl border px-3 py-2.5 text-sm font-bold ' + (stockAdjustmentMode === 'add' ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white text-stone-700 border-stone-300')}>স্টক বাড়ান</button>
                 <button type="button" onClick={() => setStockAdjustmentMode('remove')} className={'rounded-xl border px-3 py-2.5 text-sm font-bold ' + (stockAdjustmentMode === 'remove' ? 'bg-rose-700 text-white border-rose-700' : 'bg-white text-stone-700 border-stone-300')}>স্টক কমান</button>
@@ -1557,9 +1569,9 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <label className="block"><span className="text-xs font-bold text-stone-700">নোট (ঐচ্ছিক)</span><textarea value={stockAdjustmentNote} onChange={(e) => setStockAdjustmentNote(e.target.value.slice(0, 300))} rows={2} placeholder="যেমন: আজকের নতুন চালান, ইনভয়েস নম্বর..." className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm resize-none focus:outline-hidden focus:border-emerald-600" /></label>
               <div className="rounded-xl bg-stone-50 border border-stone-200 p-3"><div className="flex items-center justify-between gap-3"><span className="text-stone-500">পরবর্তী স্টক</span><strong className="text-lg text-stone-900">{Math.max(0, stockEditorProduct.stock + (stockAdjustmentMode === 'add' ? 1 : -1) * Math.max(0, Math.floor(Number(stockAdjustmentAmount) || 0)))} {stockEditorProduct.unit || 'টি'}</strong></div></div>
-              <button type="button" disabled={isStockSaving || !Number.isInteger(Number(stockAdjustmentAmount)) || Number(stockAdjustmentAmount) < 1 || (stockAdjustmentMode === 'remove' && Number(stockAdjustmentAmount) > stockEditorProduct.stock)} onClick={() => { const amount = Math.floor(Number(stockAdjustmentAmount)); if (!Number.isInteger(amount) || amount < 1) return; const delta = stockAdjustmentMode === 'add' ? amount : -amount; void (async () => { setIsStockSaving(true); const success = await adjustProductStock(stockEditorProduct.id, delta, stockAdjustmentReason, stockAdjustmentNote); setIsStockSaving(false); if (success) setStockHistory(await getProductStockHistory(stockEditorProduct.id, 30)); })(); }} className="w-full rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3">{isStockSaving ? 'সংরক্ষণ হচ্ছে...' : stockAdjustmentMode === 'add' ? 'স্টক বাড়িয়ে সংরক্ষণ করুন' : 'স্টক কমিয়ে সংরক্ষণ করুন'}</button>
+              <button type="button" disabled={isStockSaving || (Boolean(stockEditorProduct.variants?.length) && !stockEditorVariant) || !Number.isInteger(Number(stockAdjustmentAmount)) || Number(stockAdjustmentAmount) < 1 || (stockAdjustmentMode === 'remove' && Number(stockAdjustmentAmount) > (stockEditorVariant ? stockEditorVariant.stock : stockEditorProduct.stock))} onClick={() => { const amount = Math.floor(Number(stockAdjustmentAmount)); if (!Number.isInteger(amount) || amount < 1) return; const delta = stockAdjustmentMode === 'add' ? amount : -amount; void (async () => { setIsStockSaving(true); const success = stockEditorVariant ? await adjustProductVariantStock(stockEditorProduct.id, stockEditorVariant.id, delta, stockAdjustmentReason, stockAdjustmentNote) : await adjustProductStock(stockEditorProduct.id, delta, stockAdjustmentReason, stockAdjustmentNote); setIsStockSaving(false); if (success) setStockHistory(await getProductStockHistory(stockEditorProduct.id, 30, stockEditorVariant?.id)); })(); }} className="w-full rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3">{isStockSaving ? 'সংরক্ষণ হচ্ছে...' : stockAdjustmentMode === 'add' ? 'স্টক বাড়িয়ে সংরক্ষণ করুন' : 'স্টক কমিয়ে সংরক্ষণ করুন'}</button>
               <div><div className="flex items-center justify-between gap-3 mb-2"><h4 className="text-sm font-black text-stone-900">সাম্প্রতিক স্টক ইতিহাস</h4><span className="text-[10px] text-stone-400">সর্বশেষ ৩০টি</span></div>
-                {isStockHistoryLoading ? <div className="py-6 text-center text-xs text-stone-500">ইতিহাস লোড হচ্ছে...</div> : stockHistory.length === 0 ? <div className="py-6 text-center text-xs text-stone-500 border border-dashed border-stone-200 rounded-xl">এখনও কোনো স্টক পরিবর্তনের ইতিহাস নেই।</div> : <div className="border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100">{stockHistory.map((movement) => <div key={movement.id} className="p-3 flex items-center justify-between gap-3"><div className="min-w-0"><div className="text-xs font-bold text-stone-800">{movement.reason === 'restock' ? 'নতুন স্টক' : movement.reason === 'damaged' ? 'নষ্ট/ক্ষতিগ্রস্ত' : movement.reason === 'correction' ? 'স্টক সংশোধন' : movement.reason === 'returned' ? 'রিটার্ন' : 'ম্যানুয়াল সমন্বয়'}</div><div className="text-[10px] text-stone-400 truncate">{movement.note || 'কোনো নোট নেই'} · {new Date(movement.createdAt).toLocaleString('bn-BD')}</div></div><div className="text-right shrink-0"><div className={'font-black ' + (movement.delta > 0 ? 'text-emerald-700' : 'text-rose-700')}>{movement.delta > 0 ? '+' : ''}{movement.delta}</div><div className="text-[10px] text-stone-400">{movement.previousStock} → {movement.newStock}</div></div></div>)}</div>}
+                {isStockHistoryLoading ? <div className="py-6 text-center text-xs text-stone-500">ইতিহাস লোড হচ্ছে...</div> : stockHistory.length === 0 ? <div className="py-6 text-center text-xs text-stone-500 border border-dashed border-stone-200 rounded-xl">এখনও কোনো স্টক পরিবর্তনের ইতিহাস নেই।</div> : <div className="border border-stone-200 rounded-xl overflow-hidden divide-y divide-stone-100">{stockHistory.map((movement) => <div key={movement.id} className="p-3 flex items-center justify-between gap-3"><div className="min-w-0"><div className="text-xs font-bold text-stone-800">{movement.variantName ? movement.variantName + ' · ' : ''}{movement.reason === 'restock' ? 'নতুন স্টক' : movement.reason === 'damaged' ? 'নষ্ট/ক্ষতিগ্রস্ত' : movement.reason === 'correction' ? 'স্টক সংশোধন' : movement.reason === 'returned' ? 'রিটার্ন' : 'ম্যানুয়াল সমন্বয়'}</div><div className="text-[10px] text-stone-400 truncate">{movement.note || 'কোনো নোট নেই'} · {new Date(movement.createdAt).toLocaleString('bn-BD')}</div></div><div className="text-right shrink-0"><div className={'font-black ' + (movement.delta > 0 ? 'text-emerald-700' : 'text-rose-700')}>{movement.delta > 0 ? '+' : ''}{movement.delta}</div><div className="text-[10px] text-stone-400">{movement.previousStock} → {movement.newStock}</div></div></div>)}</div>}
               </div>
             </div>
           </div>
