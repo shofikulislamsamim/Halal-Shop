@@ -69,7 +69,6 @@ export const INITIAL_SETTINGS: WebsiteSettings = {
   termsAndConditions: '',
   supportHours: 'প্রতিদিন সকাল ৯টা - রাত ১০টা',
   floatingWhatsappEnabled: true,
-  adminPin: 'HalalShop@2026',
 };
 
 export const INITIAL_CATEGORIES: Category[] = [
