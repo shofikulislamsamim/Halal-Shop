@@ -112,7 +112,7 @@ export const AdminDashboard: React.FC = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
 
   // Use the exact same website logo shown in the main Header.
-  const invoiceLogoSrc = '/Halal-Shop/halal-shop-logo.jpg';
+  const invoiceLogoSrc = settings.logoUrl || '/Halal-Shop/halal-shop-logo.jpg';
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, '');
@@ -419,9 +419,18 @@ export const AdminDashboard: React.FC = () => {
               </button>
               <button
                 type="button"
+                onClick={() => { void toggleCategoryStatus(cat.id); }}
+                className="p-1.5 text-stone-500 hover:text-emerald-700 rounded-lg"
+                title={cat.isActive ? 'ক্যাটাগরি নিষ্ক্রিয় করুন' : 'ক্যাটাগরি সক্রিয় করুন'}
+                aria-label={cat.nameBn + (cat.isActive ? ' নিষ্ক্রিয় করুন' : ' সক্রিয় করুন')}
+              >
+                {cat.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   if (window.confirm('আপনি কি "' + cat.nameBn + '" ক্যাটাগরিটি মুছে ফেলতে চান?')) {
-                    deleteCategory(cat.id);
+                    void deleteCategory(cat.id);
                   }
                 }}
                 className="p-1.5 text-stone-500 hover:text-rose-600 rounded-lg"
@@ -1052,7 +1061,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Admin Stats Overview Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {[
-          ['মোট অর্ডার', orders.length, 'text-stone-900'],
+          ['মোট অর্ডার', orderStats.total, 'text-stone-900'],
           ['আজকের অর্ডার', todayOrders, 'text-sky-700'],
           ['পেন্ডিং', pendingCount, 'text-amber-700'],
           ['প্রসেসিং', processingCount, 'text-indigo-700'],
@@ -1087,7 +1096,7 @@ export const AdminDashboard: React.FC = () => {
           }`}
         >
           <ShoppingBag className="w-4 h-4" />
-          <span>অর্ডার ব্যবস্থাপনা ({orders.length})</span>
+          <span>অর্ডার ব্যবস্থাপনা ({orderStats.total})</span>
         </button>
 
         <button
