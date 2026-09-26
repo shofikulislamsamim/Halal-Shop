@@ -85,7 +85,20 @@ export const Header: React.FC = () => {
     <header className="sticky top-0 z-30 bg-white border-b border-stone-200/90 shadow-2xs">
       {/* 1. Top Announcement Bar */}
       {announcementVisible && (
-        {/* 2. Main Header Bar */}
+        <div className="bg-emerald-800 text-white text-[11px] sm:text-xs">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-2 text-center">
+            {settings.announcementLink ? (
+              <a href={settings.announcementLink} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2 hover:text-amber-200">
+                {settings.announcementText}
+              </a>
+            ) : (
+              <span className="font-semibold">{settings.announcementText}</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. Main Header Bar */}
       <div className="max-w-6xl mx-auto px-4 py-2.5 sm:py-3.5">
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           {/* Logo */}
