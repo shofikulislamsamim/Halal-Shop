@@ -39,23 +39,57 @@ export interface Category {
   updatedAt?: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  name: string;
+  sku?: string;
+  price: number;
+  regularPrice?: number;
+  stock: number;
+  unit?: string;
+}
+
 export interface Product {
   id: string;
   nameBn: string;
   nameEn: string;
   slug?: string;
-  categoryId: string; // Primary category id
-  categoryIds?: string[]; // Optional secondary category ids
+  sku?: string;
+  categoryId: string;
+  categoryIds?: string[];
+  tags?: string[];
+  brand?: string;
+  manufacturer?: string;
+  originCountry?: string;
   price: number;
   regularPrice?: number;
   stock: number;
+  lowStockThreshold?: number;
+  unit?: string;
+  weight?: number;
+  dimensions?: string;
+  minOrderQty?: number;
+  maxOrderQty?: number;
   imageUrl: string;
+  galleryUrls?: string[];
+  shortDescription?: string;
   descriptionBn: string;
+  descriptionEn?: string;
   specifications: Specification[];
+  variants?: ProductVariant[];
+  relatedProductIds?: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string[];
   isFeatured: boolean;
   isPopular?: boolean;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
+  isSpecialOffer?: boolean;
+  isLimitedStock?: boolean;
+  isDraft?: boolean;
   isActive: boolean;
-  unit?: string;
+  whatsappEnabled?: boolean;
 }
 
 export interface CartItem {
