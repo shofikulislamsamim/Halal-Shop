@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { AlertTriangle, Wrench } from 'lucide-react';
 import { ShopProvider, useShop } from './context/ShopContext';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
@@ -150,6 +151,32 @@ const AppContent: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-[#FAFAF7] text-stone-900 selection:bg-emerald-100 selection:text-emerald-900">
       {/* Global Header & Navigation */}
       <Header />
+
+      {/* Store Status Notice */}
+      {settings.storeStatus && settings.storeStatus !== 'open' && (
+        <div
+          role="status"
+          className="border-b border-amber-200 bg-amber-50 text-amber-950"
+        >
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-start gap-3">
+            {settings.storeStatus === 'maintenance' ? (
+              <Wrench className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-700" />
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-sm">
+                {settings.storeStatus === 'maintenance' ? 'ওয়েবসাইট রক্ষণাবেক্ষণে আছে' : 'দোকান বর্তমানে বন্ধ'}
+              </p>
+              <p className="text-xs sm:text-sm mt-0.5 text-amber-900/80">
+                {settings.storeStatus === 'maintenance'
+                  ? (settings.maintenanceMessage || 'কিছু সময়ের জন্য অর্ডার গ্রহণ বন্ধ আছে।')
+                  : (settings.storeClosedMessage || 'বর্তমানে নতুন অর্ডার নেওয়া হচ্ছে না।')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main View Router */}
       <main className="flex-1">
