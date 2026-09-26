@@ -20,6 +20,18 @@ const AppContent: React.FC = () => {
   const { currentView, selectedProductId, products, settings } = useShop();
 
   useEffect(() => {
+    if (settings.faviconUrl) {
+      let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = settings.faviconUrl;
+    }
+  }, [settings.faviconUrl]);
+
+  useEffect(() => {
     const product = selectedProductId ? products.find((p) => p.id === selectedProductId) : null;
     const titles: Record<string, string> = {
       home: settings.shopName,
@@ -34,9 +46,9 @@ const AppContent: React.FC = () => {
 
     document.title = product
       ? `${product.nameBn} | ${settings.shopName}`
-      : (titles[currentView] || settings.shopName);
+      : (titles[currentView] || settings.seoTitle || settings.shopName);
 
-    const description = product?.descriptionBn || settings.heroSubtitle || 'বিশ্বস্ত হালাল পণ্যের অনলাইন শপ। সহজ অর্ডার ও ক্যাশ অন ডেলিভারি সুবিধা।';
+    const description = product?.descriptionBn || settings.seoDescription || settings.heroSubtitle || 'বিশ্বস্ত হালাল পণ্যের অনলাইন শপ। সহজ অর্ডার ও ক্যাশ অন ডেলিভারি সুবিধা।';
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -46,7 +58,32 @@ const AppContent: React.FC = () => {
     meta.setAttribute('content', description.slice(0, 160));
 
     const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (canonical) canonical.href = window.location.href.split('#')[0];
+    if (canonical) canonical.href = settings.canonicalUrl || window.location.href.split('#')[0];
+
+    if (settings.googleSiteVerification) {
+      let verification = document.querySelector('meta[name="google-site-verification"]');
+      if (!verification) {
+        verification = document.createElement('meta');
+        verification.setAttribute('name', 'google-site-verification');
+        document.head.appendChild(verification);
+      }
+      verification.setAttribute('content', settings.googleSiteVerification);
+    }
+    const og = [
+      ['og:title', settings.ogTitle || settings.seoTitle || settings.shopName],
+      ['og:description', settings.ogDescription || description.slice(0, 160)],
+      ['og:image', settings.ogImageUrl || settings.logoUrl],
+    ];
+    og.forEach(([name, content]) => {
+      if (!content) return;
+      let tag = document.querySelector(`meta[property="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', content);
+    });
   }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle]);
 
   return (
