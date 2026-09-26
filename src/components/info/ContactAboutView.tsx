@@ -106,7 +106,7 @@ export const ContactAboutView: React.FC<ContactAboutViewProps> = ({ initialTab =
             <div className="text-[11px] text-stone-500 space-y-1">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-stone-400" />
-                <span>সপ্তাহের ৭ দিনই অর্ডার গ্রহণ করা হয়</span>
+                <span>{settings.businessHours || 'সপ্তাহের ৭ দিনই অর্ডার গ্রহণ করা হয়'}</span>
               </div>
             </div>
           </div>
@@ -164,6 +164,24 @@ export const ContactAboutView: React.FC<ContactAboutViewProps> = ({ initialTab =
           </div>
         </div>
       </div>
+
+      {(settings.returnPolicy || settings.termsAndConditions) && (
+        <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-10 shadow-xs space-y-7">
+          <h2 className="text-xl sm:text-2xl font-bold text-stone-900">নীতিমালা ও শর্তাবলি</h2>
+          {settings.returnPolicy && (
+            <div>
+              <h3 className="font-bold text-stone-900 mb-2">রিটার্ন / রিপ্লেসমেন্ট নীতিমালা</h3>
+              <p className="text-sm text-stone-700 leading-7 whitespace-pre-line">{settings.returnPolicy}</p>
+            </div>
+          )}
+          {settings.termsAndConditions && (
+            <div className="pt-5 border-t border-stone-200">
+              <h3 className="font-bold text-stone-900 mb-2">শর্তাবলি</h3>
+              <p className="text-sm text-stone-700 leading-7 whitespace-pre-line">{settings.termsAndConditions}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
