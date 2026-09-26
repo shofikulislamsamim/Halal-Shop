@@ -45,16 +45,8 @@ const AppContent: React.FC = () => {
     }
     meta.setAttribute('content', description.slice(0, 160));
 
-    // Keep the canonical URL stable for the deployed GitHub Pages site.
-    // Route-like views are currently client-side states, so they should not
-    // overwrite the homepage canonical with transient browser URLs.
-    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.rel = 'canonical';
-      document.head.appendChild(canonical);
-    }
-    canonical.href = 'https://shofikulislamsamim.github.io/Halal-Shop/';
+    const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (canonical) canonical.href = window.location.href.split('#')[0];
   }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle]);
 
   return (
