@@ -168,7 +168,7 @@ export const CartDrawer: React.FC = () => {
                         {item.product.nameBn}
                       </h4>
                       <div className="text-xs font-bold text-emerald-900 mt-1">
-                        {formatPrice(item.product.price)}
+                        {formatPrice(item.variantPrice ?? item.product.price)}
                       </div>
 
                       {/* Quantity Controls */}
@@ -176,7 +176,7 @@ export const CartDrawer: React.FC = () => {
                         <div className="inline-flex items-center border border-stone-200 rounded-lg bg-white shadow-2xs">
                           <button
                             type="button"
-                            onClick={() => updateCartQuantity(item.product.id, item.quantity - 1)}
+                            onClick={() => updateCartQuantity(item.product.id, item.quantity - 1, item.variantId)}
                             className="p-1 sm:p-1.5 text-stone-600 hover:bg-stone-100 rounded-l-lg"
                             aria-label="Decrease quantity"
                           >
@@ -187,8 +187,8 @@ export const CartDrawer: React.FC = () => {
                           </span>
                           <button
                             type="button"
-                            onClick={() => updateCartQuantity(item.product.id, item.quantity + 1)}
-                            disabled={item.quantity >= item.product.stock}
+                            onClick={() => updateCartQuantity(item.product.id, item.quantity + 1, item.variantId)}
+                            disabled={item.quantity >= (item.variantId ? (item.product.variants?.find((v) => v.id === item.variantId)?.stock ?? 0) : item.product.stock)}
                             className="p-1 sm:p-1.5 text-stone-600 hover:bg-stone-100 rounded-r-lg disabled:opacity-30"
                             aria-label="Increase quantity"
                           >
@@ -198,7 +198,7 @@ export const CartDrawer: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => removeFromCart(item.product.id)}
+                          onClick={() => removeFromCart(item.product.id, item.variantId)}
                           className="text-stone-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors ml-auto"
                           aria-label="Remove item"
                         >
