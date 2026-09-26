@@ -1540,183 +1540,238 @@ export const AdminDashboard: React.FC = () => {
       {/* 5. SETTINGS TAB */}
       {/* ========================================================= */}
       {activeTab === 'settings' && (
-        <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-6 max-w-3xl">
-          <h2 className="text-lg font-bold text-stone-900 pb-2 border-b border-stone-100">
-            দোকান ও ডেলিভারি কনফিগারেশন
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                দোকানের নাম (Shop Name)
-              </label>
-              <input
-                type="text"
-                value={settingsForm.shopName}
-                onChange={(e) => setSettingsForm({ ...settingsForm, shopName: e.target.value })}
-                className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                হোয়াটসঅ্যাপ নাম্বার (আন্তর্জাতিক ফরম্যাট যেমন 88017XXXXXXXX)
-              </label>
-              <input
-                type="text"
-                value={settingsForm.whatsappNumber}
-                onChange={(e) => setSettingsForm({ ...settingsForm, whatsappNumber: e.target.value })}
-                className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                সরাসরি ফোন হেল্পলাইন
-              </label>
-              <input
-                type="text"
-                value={settingsForm.contactNumber}
-                onChange={(e) => setSettingsForm({ ...settingsForm, contactNumber: e.target.value })}
-                className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-stone-700 mb-1">
-                দোকানের ঠিকানা
-              </label>
-              <input
-                type="text"
-                value={settingsForm.shopAddress}
-                onChange={(e) => setSettingsForm({ ...settingsForm, shopAddress: e.target.value })}
-                className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-              />
-            </div>
+        <form
+          onSubmit={handleSaveSettings}
+          className="bg-white p-4 sm:p-6 rounded-3xl border border-stone-200 shadow-2xs space-y-7 max-w-5xl"
+        >
+          <div>
+            <h2 className="text-lg font-black text-stone-900">দোকানের পূর্ণাঙ্গ সেটিংস</h2>
+            <p className="text-xs text-stone-500 mt-1">দোকান, ডেলিভারি, COD, অর্ডার, হোমপেজ, SEO ও স্টোর স্ট্যাটাস এক জায়গা থেকে নিয়ন্ত্রণ করুন।</p>
           </div>
 
-          <div className="pt-4 border-t border-stone-200">
-            <h3 className="text-sm font-bold text-stone-900 mb-3">ডেলিভারি চার্জ নির্ধারণ:</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  ঢাকা শহরের ভেতরে (৳)
-                </label>
-                <input
-                  type="number"
-                  value={settingsForm.deliveryChargeDhaka}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      deliveryChargeDhaka: Number(e.target.value),
-                    })
-                  }
-                  className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  ঢাকার বাইরে সারাদেশে (৳)
-                </label>
-                <input
-                  type="number"
-                  value={settingsForm.deliveryChargeOutsideDhaka}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      deliveryChargeOutsideDhaka: Number(e.target.value),
-                    })
-                  }
-                  className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  ফ্রি ডেলিভারি ন্যূনতম অর্ডার (৳)
-                </label>
-                <input
-                  type="number"
-                  value={settingsForm.freeDeliveryThreshold}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      freeDeliveryThreshold: Number(e.target.value),
-                    })
-                  }
-                  className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-stone-200">
-            <h3 className="text-sm font-bold text-stone-900 mb-3">হোম ব্যানার ও ঘোষণা:</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  হিরো টাইটেল
-                </label>
-                <input
-                  type="text"
-                  value={settingsForm.heroTitle}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, heroTitle: e.target.value })}
-                  className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  হিরো সাবটাইটেল
-                </label>
-                <input
-                  type="text"
-                  value={settingsForm.heroSubtitle}
-                  onChange={(e) =>
-                    setSettingsForm({ ...settingsForm, heroSubtitle: e.target.value })
-                  }
-                  className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  ঘোষণা বার (Announcement Bar)
-                </label>
-                <div className="flex gap-2 items-center">
+          {/* General + contact */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">১. সাধারণ ও যোগাযোগ</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                ['দোকানের নাম', 'shopName', 'text'],
+                ['ট্যাগলাইন', 'tagline', 'text'],
+                ['লোগো URL', 'logoUrl', 'url'],
+                ['Favicon URL', 'faviconUrl', 'url'],
+                ['ইমেইল', 'email', 'email'],
+                ['WhatsApp (8801XXXXXXXXX)', 'whatsappNumber', 'text'],
+                ['ফোন/হেল্পলাইন', 'contactNumber', 'text'],
+                ['Google Maps URL', 'mapUrl', 'url'],
+                ['ব্যবসার সময়', 'businessHours', 'text'],
+                ['Support Hours', 'supportHours', 'text'],
+              ].map(([label, key, type]) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">{label}</label>
                   <input
-                    type="text"
-                    value={settingsForm.announcementText}
-                    onChange={(e) =>
-                      setSettingsForm({ ...settingsForm, announcementText: e.target.value })
-                    }
-                    className="flex-1 bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
+                    type={type}
+                    value={String((settingsForm as any)[key] ?? '')}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value } as any)}
+                    className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300"
                   />
-                  <label className="flex items-center gap-1.5 text-xs text-stone-700 font-semibold cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settingsForm.isAnnouncementActive}
-                      onChange={(e) =>
-                        setSettingsForm({
-                          ...settingsForm,
-                          isAnnouncementActive: e.target.checked,
-                        })
-                      }
-                      className="w-4 h-4 accent-emerald-700"
-                    />
-                    <span>চালু রাখুন</span>
-                  </label>
+                </div>
+              ))}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">দোকানের ঠিকানা</label>
+                <input type="text" value={settingsForm.shopAddress || ''} onChange={(e) => setSettingsForm({ ...settingsForm, shopAddress: e.target.value })} className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">Facebook Page</label>
+                <input type="url" value={settingsForm.facebookPage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, facebookPage: e.target.value })} className="w-full bg-white text-stone-900 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+            </div>
+          </section>
+
+          {/* Delivery */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">২. ডেলিভারি কনফিগারেশন</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                ['ঢাকা চার্জ (৳)', 'deliveryChargeDhaka'],
+                ['ঢাকার বাইরে চার্জ (৳)', 'deliveryChargeOutsideDhaka'],
+                ['ফ্রি ডেলিভারি থ্রেশহোল্ড (৳)', 'freeDeliveryThreshold'],
+                ['ন্যূনতম অর্ডার (৳)', 'minimumOrderAmount'],
+              ].map(([label, key]) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">{label}</label>
+                  <input type="number" min="0" value={Number((settingsForm as any)[key] ?? 0)} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: Number(e.target.value) } as any)} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">ঢাকায় আনুমানিক সময়</label>
+                <input value={settingsForm.estimatedDeliveryDhaka || ''} onChange={(e) => setSettingsForm({ ...settingsForm, estimatedDeliveryDhaka: e.target.value })} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">সারাদেশে আনুমানিক সময়</label>
+                <input value={settingsForm.estimatedDeliveryOutsideDhaka || ''} onChange={(e) => setSettingsForm({ ...settingsForm, estimatedDeliveryOutsideDhaka: e.target.value })} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">ডেলিভারি কভারেজ</label>
+                <input value={settingsForm.deliveryCoverage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, deliveryCoverage: e.target.value })} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={settingsForm.sameDayDelivery === true} onChange={(e) => setSettingsForm({ ...settingsForm, sameDayDelivery: e.target.checked })} className="w-4 h-4 accent-emerald-700" /> Same-day delivery</label>
+            </div>
+          </section>
+
+          {/* COD only */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৩. পেমেন্ট — শুধু Cash on Delivery</h3>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black">৳</div>
+                <div>
+                  <div className="font-bold text-sm text-stone-900">Cash on Delivery</div>
+                  <div className="text-xs text-stone-600">bKash, Nagad, Rocket, Bank ও Card Payment এখানে রাখা হবে না।</div>
                 </div>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">COD সর্বনিম্ন অর্ডার (৳)</label>
+                  <input type="number" min="0" value={Number(settingsForm.codMinimumOrder ?? 0)} onChange={(e) => setSettingsForm({ ...settingsForm, codMinimumOrder: Number(e.target.value), cashOnDeliveryEnabled: true })} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">COD সর্বোচ্চ অর্ডার (৳, 0 = সীমা নেই)</label>
+                  <input type="number" min="0" value={Number(settingsForm.codMaximumOrder ?? 0)} onChange={(e) => setSettingsForm({ ...settingsForm, codMaximumOrder: Number(e.target.value), cashOnDeliveryEnabled: true })} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+                </div>
+                <div className="flex items-end">
+                  <div className="w-full rounded-xl bg-white border border-emerald-200 px-3 py-2.5 text-xs font-bold text-emerald-800">✓ Cash on Delivery সক্রিয়</div>
+                </div>
+              </div>
+              <textarea value={settingsForm.codInstructions || ''} onChange={(e) => setSettingsForm({ ...settingsForm, codInstructions: e.target.value })} placeholder="COD নির্দেশনা" className="w-full mt-3 min-h-20 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
             </div>
-          </div>
+          </section>
+
+          {/* Orders */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৪. অর্ডার সেটিংস</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold mb-1">Cancellation Window (মিনিট)</label>
+                <input type="number" min="0" value={Number(settingsForm.customerCancellationMinutes ?? 30)} onChange={(e) => setSettingsForm({ ...settingsForm, customerCancellationMinutes: Number(e.target.value) })} className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              </div>
+              <label className="flex items-center gap-2 text-xs font-semibold pt-6"><input type="checkbox" checked={settingsForm.orderAutoConfirm === true} onChange={(e) => setSettingsForm({ ...settingsForm, orderAutoConfirm: e.target.checked })} className="w-4 h-4 accent-emerald-700" /> অটো Confirm</label>
+            </div>
+            <textarea value={settingsForm.orderConfirmationMessage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, orderConfirmationMessage: e.target.value })} placeholder="অর্ডার কনফার্মেশন মেসেজ" className="w-full min-h-20 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+          </section>
+
+          {/* Product display */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৫. পণ্য প্রদর্শন</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {[
+                ['outOfStockVisible', 'Out-of-stock পণ্য দেখান'],
+                ['stockQuantityVisible', 'স্টক সংখ্যা দেখান'],
+                ['skuVisible', 'SKU দেখান'],
+                ['lowStockWarningVisible', 'Low-stock warning দেখান'],
+                ['productReviewsEnabled', 'Product reviews চালু'],
+                ['wishlistEnabled', 'Wishlist চালু'],
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={(settingsForm as any)[key] === true} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.checked } as any)} className="w-4 h-4 accent-emerald-700" /> {label}</label>
+              ))}
+            </div>
+          </section>
+
+          {/* Homepage */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৬. হোমপেজ</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                ['হিরো টাইটেল', 'heroTitle'], ['হিরো সাবটাইটেল', 'heroSubtitle'],
+                ['Hero Image URL', 'heroImageUrl'], ['Hero Button Text', 'heroButtonText'], ['Hero Button Link', 'heroButtonLink'],
+              ].map(([label, key]) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">{label}</label>
+                  <input value={String((settingsForm as any)[key] ?? '')} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value } as any)} className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-stone-300" />
+                </div>
+              ))}
+              <label className="flex items-center gap-2 text-xs font-semibold pt-6"><input type="checkbox" checked={settingsForm.categorySectionEnabled !== false} onChange={(e) => setSettingsForm({ ...settingsForm, categorySectionEnabled: e.target.checked })} className="w-4 h-4 accent-emerald-700" /> Category section চালু</label>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                ['Featured', 'featuredProductsCount'], ['Popular', 'popularProductsCount'], ['New Arrival', 'newArrivalProductsCount'], ['Best Seller', 'bestSellerProductsCount'],
+              ].map(([label, key]) => (
+                <div key={key}>
+                  <label className="block text-[11px] font-semibold mb-1">{label} কতটি</label>
+                  <input type="number" min="0" value={Number((settingsForm as any)[key] ?? 8)} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: Number(e.target.value) } as any)} className="w-full text-xs px-3 py-2 rounded-xl border border-stone-300" />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Announcement + social */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৭. Announcement ও Social</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="Announcement text" value={settingsForm.announcementText || ''} onChange={(e) => setSettingsForm({ ...settingsForm, announcementText: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Announcement link" value={settingsForm.announcementLink || ''} onChange={(e) => setSettingsForm({ ...settingsForm, announcementLink: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Instagram URL" value={settingsForm.instagramPage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, instagramPage: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="YouTube URL" value={settingsForm.youtubeChannel || ''} onChange={(e) => setSettingsForm({ ...settingsForm, youtubeChannel: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="TikTok URL" value={settingsForm.tiktokPage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, tiktokPage: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Messenger URL" value={settingsForm.messengerUrl || ''} onChange={(e) => setSettingsForm({ ...settingsForm, messengerUrl: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <label className="flex items-center gap-2"><input type="checkbox" checked={settingsForm.isAnnouncementActive === true} onChange={(e) => setSettingsForm({ ...settingsForm, isAnnouncementActive: e.target.checked })} className="w-4 h-4 accent-emerald-700" /> Announcement চালু</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={settingsForm.floatingWhatsappEnabled !== false} onChange={(e) => setSettingsForm({ ...settingsForm, floatingWhatsappEnabled: e.target.checked })} className="w-4 h-4 accent-emerald-700" /> Floating WhatsApp</label>
+            </div>
+          </section>
+
+          {/* SEO */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৮. SEO ও Analytics</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="SEO Title" value={settingsForm.seoTitle || ''} onChange={(e) => setSettingsForm({ ...settingsForm, seoTitle: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Canonical URL" value={settingsForm.canonicalUrl || ''} onChange={(e) => setSettingsForm({ ...settingsForm, canonicalUrl: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="OG Title" value={settingsForm.ogTitle || ''} onChange={(e) => setSettingsForm({ ...settingsForm, ogTitle: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="OG Image URL" value={settingsForm.ogImageUrl || ''} onChange={(e) => setSettingsForm({ ...settingsForm, ogImageUrl: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Google Site Verification" value={settingsForm.googleSiteVerification || ''} onChange={(e) => setSettingsForm({ ...settingsForm, googleSiteVerification: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Google Analytics ID" value={settingsForm.googleAnalyticsId || ''} onChange={(e) => setSettingsForm({ ...settingsForm, googleAnalyticsId: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            </div>
+            <textarea placeholder="SEO Description" value={settingsForm.seoDescription || ''} onChange={(e) => setSettingsForm({ ...settingsForm, seoDescription: e.target.value })} className="w-full min-h-20 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            <input placeholder="SEO Keywords — comma separated" value={(settingsForm.seoKeywords || []).join(', ')} onChange={(e) => setSettingsForm({ ...settingsForm, seoKeywords: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+          </section>
+
+          {/* Invoice + policy */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৯. Invoice ও Policy</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="Invoice Prefix" value={settingsForm.invoicePrefix || ''} onChange={(e) => setSettingsForm({ ...settingsForm, invoicePrefix: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+              <input placeholder="Invoice Footer" value={settingsForm.invoiceFooter || ''} onChange={(e) => setSettingsForm({ ...settingsForm, invoiceFooter: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            </div>
+            <textarea placeholder="Return Policy" value={settingsForm.returnPolicy || ''} onChange={(e) => setSettingsForm({ ...settingsForm, returnPolicy: e.target.value })} className="w-full min-h-20 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            <textarea placeholder="Terms & Conditions" value={settingsForm.termsAndConditions || ''} onChange={(e) => setSettingsForm({ ...settingsForm, termsAndConditions: e.target.value })} className="w-full min-h-20 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            <textarea placeholder="Footer Notice" value={settingsForm.footerNotice || ''} onChange={(e) => setSettingsForm({ ...settingsForm, footerNotice: e.target.value })} className="w-full min-h-20 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+          </section>
+
+          {/* Store status */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">১০. Store Status</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                ['open', '🟢 Open — অর্ডার চালু'],
+                ['closed', '🟠 Closed — অর্ডার বন্ধ'],
+                ['maintenance', '🔴 Maintenance — অর্ডার বন্ধ'],
+              ].map(([value, label]) => (
+                <label key={value} className="flex items-center gap-2 rounded-xl border border-stone-200 p-3 text-xs font-bold cursor-pointer">
+                  <input type="radio" name="storeStatus" value={value} checked={(settingsForm.storeStatus || 'open') === value} onChange={() => setSettingsForm({ ...settingsForm, storeStatus: value as any, isStoreOpen: value === 'open' })} className="accent-emerald-700" />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <textarea placeholder="Closed message" value={settingsForm.storeClosedMessage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, storeClosedMessage: e.target.value })} className="w-full min-h-16 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+            <textarea placeholder="Maintenance message" value={settingsForm.maintenanceMessage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, maintenanceMessage: e.target.value })} className="w-full min-h-16 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
+          </section>
 
           <button
             type="submit"
-            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 px-6 rounded-xl text-sm transition-colors shadow-xs"
+            className="sticky bottom-3 w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black py-3 px-7 rounded-xl text-sm transition-colors shadow-lg"
           >
-            সেটিংস সংরক্ষণ করুন
+            সব সেটিংস সংরক্ষণ করুন
           </button>
         </form>
       )}
