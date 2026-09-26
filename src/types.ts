@@ -172,8 +172,6 @@ export interface WebsiteSettings {
   stockQuantityVisible?: boolean;
   skuVisible?: boolean;
   lowStockWarningVisible?: boolean;
-  productReviewsEnabled?: boolean;
-  wishlistEnabled?: boolean;
   heroTitle: string;
   heroSubtitle: string;
   heroImageUrl?: string;
@@ -206,7 +204,6 @@ export interface WebsiteSettings {
   termsAndConditions?: string;
   supportHours?: string;
   floatingWhatsappEnabled?: boolean;
-  adminPin?: string;
 }
 
 export type ShopSettings = WebsiteSettings;
