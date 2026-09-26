@@ -505,17 +505,27 @@ export const AdminDashboard: React.FC = () => {
   const filteredProducts = products.filter((product) => {
     if (productStatusFilter === 'active' && !product.isActive) return false;
     if (productStatusFilter === 'inactive' && product.isActive) return false;
+    const stockThreshold = Math.max(1, Number(product.lowStockThreshold ?? 3) || 3);
     if (productStockFilter === 'out' && product.stock > 0) return false;
-    if (productStockFilter === 'low' && (product.stock <= 0 || product.stock > 3)) return false;
-    if (productStockFilter === 'in' && product.stock <= 3) return false;
-    if (productCategoryFilter !== 'all' && product.categoryId !== productCategoryFilter) return false;
+    if (productStockFilter === 'low' && (product.stock <= 0 || product.stock > stockThreshold)) return false;
+    if (productStockFilter === 'in' && product.stock <= stockThreshold) return false;
+    if (
+      productCategoryFilter !== 'all' &&
+      product.categoryId !== productCategoryFilter &&
+      !(product.categoryIds || []).includes(productCategoryFilter)
+    ) return false;
 
     const q = productSearchQuery.trim().toLowerCase();
     if (!q) return true;
-    const category = categories.find((cat) => cat.id === product.categoryId);
+    const categoryIds = Array.from(new Set([product.categoryId, ...(product.categoryIds || [])].filter(Boolean)));
+    const categoryNames = categoryIds
+      .map((id) => categories.find((cat) => cat.id === id))
+      .filter(Boolean)
+      .flatMap((cat) => [cat?.nameBn || '', cat?.nameEn || '', cat?.slug || '']);
     const searchable = [
-      product.nameBn, product.nameEn, product.slug || '', product.id, product.unit || '',
-      category?.nameBn || '', category?.nameEn || '', category?.slug || '',
+      product.nameBn, product.nameEn, product.slug || '', product.id, product.sku || '', product.unit || '',
+      product.brand || '', product.manufacturer || '', product.originCountry || '',
+      ...(product.tags || []), ...categoryNames,
     ].join(' ').toLowerCase();
     return searchable.includes(q);
   });
