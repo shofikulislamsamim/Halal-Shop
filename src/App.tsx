@@ -20,16 +20,15 @@ const AppContent: React.FC = () => {
   const { currentView, selectedProductId, products, settings } = useShop();
 
   useEffect(() => {
-    if (settings.faviconUrl) {
-      let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
-      if (!favicon) {
-        favicon = document.createElement('link');
-        favicon.rel = 'icon';
-        document.head.appendChild(favicon);
-      }
-      favicon.href = settings.faviconUrl;
+    const faviconUrl = settings.faviconUrl?.trim() || settings.logoUrl?.trim() || '/Halal-Shop/halal-shop-logo.jpg';
+    let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
     }
-  }, [settings.faviconUrl]);
+    favicon.href = faviconUrl;
+  }, [settings.faviconUrl, settings.logoUrl]);
 
   useEffect(() => {
     const product = selectedProductId ? products.find((p) => p.id === selectedProductId) : null;
