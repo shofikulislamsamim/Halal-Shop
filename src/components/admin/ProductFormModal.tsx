@@ -68,7 +68,12 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
     if (form.maxOrderQty && Number(form.maxOrderQty) < Number(form.minOrderQty || 1)) return showToast('Maximum order quantity, minimum-এর চেয়ে কম হতে পারবে না।');
     if (form.sku && products.some((p) => p.id !== form.id && p.sku?.trim().toLowerCase() === form.sku?.trim().toLowerCase())) return showToast('এই SKU ইতিমধ্যে ব্যবহৃত হয়েছে।');
 
-    const finalForm = { ...form, tags: normalizeList(tagInput), seoKeywords: normalizeList(keywordInput), slug: form.slug?.trim() || slugify(form.nameEn || form.nameBn) };
+    const normalizedSlug = form.slug?.trim() || slugify(form.nameEn || form.nameBn);
+    if (normalizedSlug && products.some((p) => p.id !== form.id && p.slug?.trim().toLowerCase() === normalizedSlug.toLowerCase())) {
+      return showToast('এই Slug ইতিমধ্যে ব্যবহৃত হয়েছে। অন্য Slug দিন বা Auto চাপুন।');
+    }
+
+    const finalForm = { ...form, tags: normalizeList(tagInput), seoKeywords: normalizeList(keywordInput), slug: normalizedSlug };
     // Existing product stock is changed only from Inventory so every stock change
     // goes through the stock-history workflow. New products may set their opening stock here.
     const savePayload = isNewProduct
@@ -92,6 +97,7 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
       nameEn: form.nameEn ? form.nameEn + ' Copy' : '',
       slug: undefined,
       sku: undefined,
+      variants: (form.variants || []).map((variant) => ({ ...variant, id: crypto.randomUUID(), sku: undefined })),
       isDraft: true,
       isActive: false,
     };
@@ -111,8 +117,13 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
     try {
       const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
       const url = await supabaseUploadProductImage(file, `${crypto.randomUUID()}.${ext}`);
-      if (gallery) set('galleryUrls', [...(form.galleryUrls || []), url]);
-      else set('imageUrl', url);
+      if (gallery) {
+        // Use the latest form state so concurrent multi-file uploads do not
+        // overwrite each other's gallery URLs.
+        setForm((current) => ({ ...current, galleryUrls: [...(current.galleryUrls || []), url] }));
+      } else {
+        set('imageUrl', url);
+      }
       showToast('ছবি সফলভাবে আপলোড হয়েছে।');
     } catch (error) {
       console.error(error);
