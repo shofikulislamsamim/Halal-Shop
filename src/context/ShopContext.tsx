@@ -782,14 +782,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const remoteProducts = await supabaseFetch<any[]>('/rest/v1/halal_products?select=*&order=created_at.desc', { token });
           if (!Array.isArray(remoteProducts)) throw new Error('Inventory reload returned invalid data.');
-          setProducts(remoteProducts.map((product) => ({
-            id: product.id, nameBn: product.name_bn, slug: product.slug || undefined, nameEn: product.name_en || '',
-            categoryId: product.category_id || '', categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
-            price: Number(product.price || 0), regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
-            stock: Number(product.stock || 0), imageUrl: product.image_url || '', descriptionBn: product.description || '',
-            specifications: Object.entries(product.specs || {}).map(([label, value]) => ({ label, value: String(value ?? '') })),
-            isFeatured: product.is_featured === true, isPopular: product.is_popular === true, isActive: product.is_active !== false,
-          })));
+          setProducts(remoteProducts.map(mapRemoteProduct));
         } catch (inventoryError) {
           console.error('Inventory refresh after cancellation failed:', inventoryError);
           showToast('অর্ডার বাতিল হয়েছে, তবে স্টকের সর্বশেষ তথ্য রিফ্রেশ করা যায়নি। পরে রিফ্রেশ করুন।');
