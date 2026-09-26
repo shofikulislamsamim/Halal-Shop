@@ -124,7 +124,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="pt-2 border-t border-stone-100 flex items-center gap-1.5 sm:gap-2">
           {/* Main Dominant CTA: [কার্টে নিন] */}
           <button
-            onClick={() => addToCart(product)}
+            onClick={() => product.variants?.length ? navigateTo('product-detail', { productId: product.id }) : addToCart(product)}
             disabled={isOutOfStock}
             className={`flex-1 min-h-[40px] sm:min-h-[42px] px-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-xs ${
               isOutOfStock
@@ -132,7 +132,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 : 'bg-emerald-800 hover:bg-emerald-900 text-white active:scale-[0.98]'
             }`}
             id={`add-cart-btn-${product.id}`}
-            title="কার্টে যোগ করুন"
+            title={product.variants?.length ? 'ভ্যারিয়েন্ট নির্বাচন করুন' : 'কার্টে যোগ করুন'}
           >
             <ShoppingCart className="w-4 h-4 shrink-0" />
             <span>কার্টে নিন</span>
@@ -153,10 +153,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           {/* Quick Buy Icon/Action */}
           <button
-            onClick={() => buyNow(product)}
+            onClick={() => product.variants?.length ? navigateTo('product-detail', { productId: product.id }) : buyNow(product)}
             disabled={isOutOfStock}
             className="hidden xs:flex min-h-[40px] min-w-[40px] sm:min-h-[42px] sm:min-w-[42px] rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 items-center justify-center transition-colors shadow-2xs disabled:opacity-40"
-            title="এখনই অর্ডার করুন"
+            title={product.variants?.length ? 'ভ্যারিয়েন্ট নির্বাচন করুন' : 'এখনই অর্ডার করুন'}
             id={`quick-buy-btn-${product.id}`}
             aria-label="Buy Now"
           >
