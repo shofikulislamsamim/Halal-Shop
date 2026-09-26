@@ -1,7 +1,6 @@
 -- Customer cancellation: server-authoritative cancellation window and stock restoration.
 -- This migration documents the RPC used by the storefront.
--- Apply this migration to the production Supabase project before enabling the
--- customer cancellation button in production.
+-- The production RPC is deployed separately when this migration is applied.
 
 create or replace function private.customer_cancel_halal_order(p_order_code text, p_mobile text)
 returns jsonb
