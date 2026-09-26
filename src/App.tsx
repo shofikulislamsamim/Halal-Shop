@@ -59,8 +59,26 @@ const AppContent: React.FC = () => {
     }
     meta.setAttribute('content', description.slice(0, 160));
 
-    const canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (canonical) canonical.href = settings.canonicalUrl || window.location.href.split('#')[0];
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.rel = 'canonical';
+      document.head.appendChild(canonical);
+    }
+    canonical.href = settings.canonicalUrl || window.location.href.split('#')[0];
+
+    const keywords = settings.seoKeywords?.filter(Boolean).join(', ');
+    let keywordsMeta = document.querySelector('meta[name="keywords"]');
+    if (keywords) {
+      if (!keywordsMeta) {
+        keywordsMeta = document.createElement('meta');
+        keywordsMeta.setAttribute('name', 'keywords');
+        document.head.appendChild(keywordsMeta);
+      }
+      keywordsMeta.setAttribute('content', keywords);
+    } else if (keywordsMeta) {
+      keywordsMeta.remove();
+    }
 
     if (settings.googleSiteVerification) {
       let verification = document.querySelector('meta[name="google-site-verification"]');
@@ -86,7 +104,7 @@ const AppContent: React.FC = () => {
       }
       tag.setAttribute('content', content);
     });
-  }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle, settings.seoTitle, settings.seoDescription, settings.canonicalUrl, settings.googleSiteVerification, settings.ogTitle, settings.ogDescription, settings.ogImageUrl, settings.logoUrl]);
+  }, [currentView, selectedProductId, products, settings.shopName, settings.heroSubtitle, settings.seoTitle, settings.seoDescription, settings.seoKeywords, settings.canonicalUrl, settings.googleSiteVerification, settings.ogTitle, settings.ogDescription, settings.ogImageUrl, settings.logoUrl]);
 
   useEffect(() => {
     const id = settings.googleAnalyticsId?.trim();
