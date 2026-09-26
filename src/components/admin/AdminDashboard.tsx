@@ -226,7 +226,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Product modal state
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productSearchQuery, setProductSearchQuery] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
