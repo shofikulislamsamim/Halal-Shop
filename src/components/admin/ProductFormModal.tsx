@@ -73,7 +73,16 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
       return showToast('এই Slug ইতিমধ্যে ব্যবহৃত হয়েছে। অন্য Slug দিন বা Auto চাপুন।');
     }
 
-    const finalForm = { ...form, tags: normalizeList(tagInput), seoKeywords: normalizeList(keywordInput), slug: normalizedSlug };
+    const normalizedVariants = (form.variants || []).map((variant) => ({ ...variant, stock: Math.max(0, Math.floor(Number(variant.stock) || 0)) }));
+    const variantTotalStock = normalizedVariants.reduce((sum, variant) => sum + variant.stock, 0);
+    const finalForm = {
+      ...form,
+      tags: normalizeList(tagInput),
+      seoKeywords: normalizeList(keywordInput),
+      slug: normalizedSlug,
+      variants: normalizedVariants,
+      stock: normalizedVariants.length > 0 ? variantTotalStock : Math.max(0, Math.floor(Number(form.stock) || 0)),
+    };
     // Existing product stock is changed only from Inventory so every stock change
     // goes through the stock-history workflow. New products may set their opening stock here.
     const savePayload = isNewProduct
@@ -134,7 +143,12 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
   };
 
   const updateSpec = (index: number, patch: Partial<Specification>) => set('specifications', (form.specifications || []).map((s, i) => i === index ? { ...s, ...patch } : s));
-  const updateVariant = (index: number, patch: Partial<ProductVariant>) => set('variants', (form.variants || []).map((v, i) => i === index ? { ...v, ...patch } : v));
+  const updateVariant = (index: number, patch: Partial<ProductVariant>) => {
+    setForm((current) => {
+      const variants = (current.variants || []).map((v, i) => i === index ? { ...v, ...patch, stock: patch.stock == null ? v.stock : Math.max(0, Math.floor(Number(patch.stock) || 0)) } : v);
+      return { ...current, variants, stock: variants.reduce((sum, v) => sum + Math.max(0, Math.floor(Number(v.stock) || 0)), 0) };
+    });
+  };
 
   if (preview) {
     return (
@@ -192,11 +206,12 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
               <input
                 type="number"
                 min="0"
-                className={inputClass + (isNewProduct ? '' : ' bg-stone-100 text-stone-500 cursor-not-allowed')}
+                className={inputClass + (isNewProduct && !(form.variants || []).length ? '' : ' bg-stone-100 text-stone-500 cursor-not-allowed')}
                 value={form.stock}
-                disabled={!isNewProduct}
+                disabled={!isNewProduct || (form.variants || []).length > 0}
                 onChange={e=>set('stock',Math.max(0,Number(e.target.value)))}
               />
+              {(form.variants || []).length > 0 && <p className="text-[10px] text-amber-700 mt-1">Variant থাকলে মোট Stock স্বয়ংক্রিয়ভাবে সব Variant-এর যোগফল।</p>}
             </div>
             <div><label className={labelClass}>Low Stock Alert</label><input type="number" min="0" className={inputClass} value={form.lowStockThreshold ?? 3} onChange={e=>set('lowStockThreshold',Number(e.target.value))}/></div>
             <div><label className={labelClass}>Unit</label><input className={inputClass} value={form.unit||''} onChange={e=>set('unit',e.target.value)} placeholder="টি / kg / box"/></div>
