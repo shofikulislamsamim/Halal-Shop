@@ -6,8 +6,10 @@ import { getWhatsAppUrl, getGeneralWhatsAppMessage } from '../../utils/helpers';
 export const WhatsAppFloatingButton: React.FC = () => {
   const { settings, currentView } = useShop();
 
-  // Hide in checkout, order confirmation, product-detail (which has its own sticky bar) and admin
+  // Hide in sensitive views or when the admin disables floating support.
   if (
+    settings.floatingWhatsappEnabled === false ||
+    !settings.whatsappNumber ||
     currentView === 'checkout' ||
     currentView === 'admin' ||
     currentView === 'order-confirmation' ||
