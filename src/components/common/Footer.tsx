@@ -4,9 +4,14 @@ import {
   Phone,
   MessageCircle,
   MapPin,
+  Clock,
   Truck,
   ShieldCheck,
   CheckCircle2,
+  Facebook,
+  Instagram,
+  Youtube,
+  Music2,
 } from 'lucide-react';
 import { getWhatsAppUrl, getGeneralWhatsAppMessage } from '../../utils/helpers';
 
@@ -171,6 +176,18 @@ export const Footer: React.FC = () => {
                   {settings.contactNumber}
                 </a>
               </div>
+              {settings.businessHours && (
+                <div className="flex items-start gap-2">
+                  <Clock className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>{settings.businessHours}</span>
+                </div>
+              )}
+              {settings.supportHours && (
+                <div className="flex items-start gap-2">
+                  <Clock className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span>সাপোর্ট: {settings.supportHours}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                 <a
