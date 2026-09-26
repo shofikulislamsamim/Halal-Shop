@@ -5,7 +5,10 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/Halal-Shop/',
+    // GitHub Pages serves this project below /Halal-Shop/.
+    // A relative base keeps generated JS/CSS/assets resolvable at the
+    // deployed project URL and avoids absolute-path mismatches.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
