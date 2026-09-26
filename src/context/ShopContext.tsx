@@ -1484,8 +1484,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...nextSettings,
         seoKeywords: nextSettings.seoKeywords || [],
         announcementText: nextSettings.announcementText || '',
-        // Preserve the admin toggle exactly; false must remain false.
-        isAnnouncementActive: nextSettings.isAnnouncementActive === true,
+        isAnnouncementActive: nextSettings.isAnnouncementActive !== false,
         cashOnDeliveryEnabled: true,
       };
 
