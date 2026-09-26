@@ -1948,7 +1948,6 @@ export const AdminDashboard: React.FC = () => {
 
       {/* ========================================================= */}
       {/* ADD / EDIT PRODUCT MODAL */}
-      */}
       {isProductModalOpen && editingProduct && (
         <ProductFormModal
           product={editingProduct}
