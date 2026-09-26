@@ -309,7 +309,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...INITIAL_SETTINGS,
           ...parsed,
-          adminPin: String(parsed.adminPin || INITIAL_SETTINGS.adminPin || '').trim(),
         };
       } catch (e) {
         console.error(e);
