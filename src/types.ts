@@ -106,12 +106,17 @@ export interface ProductStockMovement {
 export interface CartItem {
   product: Product;
   quantity: number;
+  variantId?: string;
+  variantName?: string;
+  variantPrice?: number;
 }
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   nameBn: string;
   price: number;
   quantity: number;
