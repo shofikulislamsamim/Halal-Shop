@@ -350,26 +350,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Treat Supabase as the source of truth only when it actually has catalog rows.
         // An empty remote catalog must not wipe a valid local fallback during setup/migration.
         if (Array.isArray(remoteProducts) && remoteProducts.length > 0) {
-          setProducts(remoteProducts.map((product) => ({
-            id: product.id,
-            nameBn: product.name_bn,
-            slug: product.slug || undefined,
-            nameEn: product.name_en || '',
-            categoryId: product.category_id || '',
-            categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
-            price: Number(product.price || 0),
-            regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
-            stock: Number(product.stock || 0),
-            imageUrl: product.image_url || '',
-            descriptionBn: product.description || '',
-            specifications: Object.entries(product.specs || {}).map(([label, value]) => ({
-              label,
-              value: String(value ?? ''),
-            })),
-            isFeatured: product.is_featured === true,
-            isPopular: product.is_popular === true,
-            isActive: product.is_active !== false,
-          })));
+          setProducts(remoteProducts.map(mapRemoteProduct));
         }
 
         const remote = remoteSettings?.[0];
@@ -901,6 +882,49 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Product CRUD
+  const mapRemoteProduct = (product: any): Product => ({
+  id: product.id,
+  nameBn: product.name_bn || '',
+  nameEn: product.name_en || '',
+  slug: product.slug || undefined,
+  sku: product.sku || undefined,
+  categoryId: product.category_id || '',
+  categoryIds: Array.isArray(product.category_ids) ? product.category_ids : [],
+  tags: Array.isArray(product.tags) ? product.tags : [],
+  brand: product.brand || '',
+  manufacturer: product.manufacturer || '',
+  originCountry: product.origin_country || '',
+  price: Number(product.price || 0),
+  regularPrice: product.compare_at_price == null ? undefined : Number(product.compare_at_price),
+  stock: Number(product.stock || 0),
+  lowStockThreshold: Number(product.low_stock_threshold ?? 3),
+  unit: product.unit || '',
+  weight: product.weight == null ? undefined : Number(product.weight),
+  dimensions: product.dimensions || '',
+  minOrderQty: Number(product.min_order_qty ?? 1),
+  maxOrderQty: product.max_order_qty == null ? undefined : Number(product.max_order_qty),
+  imageUrl: product.main_image_url || product.image_url || '',
+  galleryUrls: Array.isArray(product.gallery_urls) ? product.gallery_urls : [],
+  shortDescription: product.short_description || '',
+  descriptionBn: product.description || '',
+  descriptionEn: product.description_en || '',
+  specifications: Object.entries(product.specs || {}).map(([label, value]) => ({ label, value: String(value ?? '') })),
+  variants: Array.isArray(product.variants) ? product.variants : [],
+  relatedProductIds: Array.isArray(product.related_product_ids) ? product.related_product_ids : [],
+  seoTitle: product.seo_title || '',
+  seoDescription: product.seo_description || '',
+  seoKeywords: Array.isArray(product.seo_keywords) ? product.seo_keywords : [],
+  isFeatured: product.is_featured === true,
+  isPopular: product.is_popular === true,
+  isNewArrival: product.is_new_arrival === true,
+  isBestSeller: product.is_best_seller === true,
+  isSpecialOffer: product.is_special_offer === true,
+  isLimitedStock: product.is_limited_stock === true,
+  isDraft: product.is_draft === true,
+  isActive: product.is_active !== false,
+  whatsappEnabled: product.whatsapp_enabled !== false,
+});
+
   const addProduct = async (productData: Omit<Product, 'id'>): Promise<boolean> => {
     const newProduct: Product = {
       ...productData, id: crypto.randomUUID(), slug: generateProductSlug(productData.nameEn || productData.nameBn, products),
@@ -913,12 +937,28 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!token || !isSupabaseConfigured) throw new Error('Admin session is not available.');
       const payload = {
         id: newProduct.id, name_bn: newProduct.nameBn.trim(), name_en: newProduct.nameEn?.trim() || null,
-        slug: newProduct.slug, category_id: isUuid(newProduct.categoryId) ? newProduct.categoryId : null,
-        category_ids: (newProduct.categoryIds || []).filter(isUuid), price: newProduct.price,
-        compare_at_price: newProduct.regularPrice ?? null, stock: newProduct.stock,
-        image_url: newProduct.imageUrl?.trim() || null, description: newProduct.descriptionBn?.trim() || null,
+        slug: newProduct.slug, sku: newProduct.sku?.trim() || null,
+        category_id: isUuid(newProduct.categoryId) ? newProduct.categoryId : null,
+        category_ids: (newProduct.categoryIds || []).filter(isUuid), tags: newProduct.tags || [],
+        brand: newProduct.brand?.trim() || null, manufacturer: newProduct.manufacturer?.trim() || null,
+        origin_country: newProduct.originCountry?.trim() || null,
+        price: newProduct.price, compare_at_price: newProduct.regularPrice ?? null, stock: newProduct.stock,
+        low_stock_threshold: Math.max(0, Math.floor(Number(newProduct.lowStockThreshold ?? 3))),
+        unit: newProduct.unit?.trim() || null, weight: newProduct.weight ?? null, dimensions: newProduct.dimensions?.trim() || null,
+        min_order_qty: Math.max(1, Math.floor(Number(newProduct.minOrderQty ?? 1))),
+        max_order_qty: newProduct.maxOrderQty ?? null, image_url: newProduct.imageUrl?.trim() || null,
+        main_image_url: newProduct.imageUrl?.trim() || null, gallery_urls: newProduct.galleryUrls || [],
+        short_description: newProduct.shortDescription?.trim() || null, description: newProduct.descriptionBn?.trim() || null,
+        description_en: newProduct.descriptionEn?.trim() || null,
         specs: Object.fromEntries((newProduct.specifications || []).filter(s => s.label?.trim()).map(s => [s.label.trim(), s.value ?? ''])),
+        variants: newProduct.variants || [], related_product_ids: (newProduct.relatedProductIds || []).filter(isUuid),
+        seo_title: newProduct.seoTitle?.trim() || null, seo_description: newProduct.seoDescription?.trim() || null,
+        seo_keywords: newProduct.seoKeywords || [],
+        whatsapp_enabled: newProduct.whatsappEnabled !== false,
         is_active: newProduct.isActive !== false, is_featured: newProduct.isFeatured === true, is_popular: newProduct.isPopular === true,
+        is_new_arrival: newProduct.isNewArrival === true, is_best_seller: newProduct.isBestSeller === true,
+        is_special_offer: newProduct.isSpecialOffer === true, is_limited_stock: newProduct.isLimitedStock === true,
+        is_draft: newProduct.isDraft === true,
       };
       let remote: any[];
       try {
@@ -948,13 +988,22 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const token=getSupabaseAccessToken(); if(!token||!isSupabaseConfigured) throw new Error('Admin session is not available.');
       const body={
-        name_bn:nextProduct.nameBn.trim(), name_en:nextProduct.nameEn?.trim()||null,
-        category_id:isUuid(nextProduct.categoryId)?nextProduct.categoryId:null,
-        category_ids:(nextProduct.categoryIds||[]).filter(isUuid), price:nextProduct.price,
-        compare_at_price:nextProduct.regularPrice??null, stock:nextProduct.stock,
-        image_url:nextProduct.imageUrl?.trim()||null, description:nextProduct.descriptionBn?.trim()||null,
+        name_bn:nextProduct.nameBn.trim(), name_en:nextProduct.nameEn?.trim()||null, slug:nextProduct.slug || generateProductSlug(nextProduct.nameEn || nextProduct.nameBn, products, id),
+        sku:nextProduct.sku?.trim()||null, category_id:isUuid(nextProduct.categoryId)?nextProduct.categoryId:null,
+        category_ids:(nextProduct.categoryIds||[]).filter(isUuid), tags:nextProduct.tags||[], brand:nextProduct.brand?.trim()||null,
+        manufacturer:nextProduct.manufacturer?.trim()||null, origin_country:nextProduct.originCountry?.trim()||null,
+        price:nextProduct.price, compare_at_price:nextProduct.regularPrice??null, stock:nextProduct.stock,
+        low_stock_threshold:Math.max(0,Math.floor(Number(nextProduct.lowStockThreshold??3))), unit:nextProduct.unit?.trim()||null,
+        weight:nextProduct.weight??null, dimensions:nextProduct.dimensions?.trim()||null, min_order_qty:Math.max(1,Math.floor(Number(nextProduct.minOrderQty??1))),
+        max_order_qty:nextProduct.maxOrderQty??null, image_url:nextProduct.imageUrl?.trim()||null, main_image_url:nextProduct.imageUrl?.trim()||null,
+        gallery_urls:nextProduct.galleryUrls||[], short_description:nextProduct.shortDescription?.trim()||null,
+        description:nextProduct.descriptionBn?.trim()||null, description_en:nextProduct.descriptionEn?.trim()||null,
         specs:Object.fromEntries((nextProduct.specifications||[]).filter(s=>s.label?.trim()).map(s=>[s.label.trim(),s.value??''])),
-        is_active:nextProduct.isActive!==false,is_featured:nextProduct.isFeatured===true,is_popular:nextProduct.isPopular===true};
+        variants:nextProduct.variants||[], related_product_ids:(nextProduct.relatedProductIds||[]).filter(isUuid),
+        seo_title:nextProduct.seoTitle?.trim()||null, seo_description:nextProduct.seoDescription?.trim()||null, seo_keywords:nextProduct.seoKeywords||[],
+        whatsapp_enabled:nextProduct.whatsappEnabled!==false, is_active:nextProduct.isActive!==false, is_featured:nextProduct.isFeatured===true,
+        is_popular:nextProduct.isPopular===true, is_new_arrival:nextProduct.isNewArrival===true, is_best_seller:nextProduct.isBestSeller===true,
+        is_special_offer:nextProduct.isSpecialOffer===true, is_limited_stock:nextProduct.isLimitedStock===true, is_draft:nextProduct.isDraft===true};
       if(!isUuid(id)){
         const newId=crypto.randomUUID();
         let remote:any[];
