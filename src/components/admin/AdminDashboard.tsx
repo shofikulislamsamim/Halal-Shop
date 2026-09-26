@@ -51,6 +51,7 @@ export const AdminDashboard: React.FC = () => {
     adjustProductStock,
     getProductStockHistory,
     deleteProduct,
+    permanentlyDeleteProduct,
     addCategory,
     updateCategory,
     deleteCategory,
