@@ -38,6 +38,17 @@ export const HomeView: React.FC = () => {
       <TrustSection />
       <CategorySection />
 
+      <section aria-labelledby="halal-shop-intro-title" className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-5 sm:p-7 shadow-sm">
+          <h2 id="halal-shop-intro-title" className="text-xl sm:text-2xl font-extrabold text-emerald-950">
+            Halal Shop — বিশ্বস্ত হালাল পণ্যের অনলাইন শপ
+          </h2>
+          <p className="mt-3 text-sm sm:text-base leading-7 text-stone-600">
+            Halal Shop-এ প্রয়োজনীয় হালাল পণ্য সহজে খুঁজে দেখুন এবং অনলাইনে অর্ডার করুন। আমাদের লক্ষ্য হলো সহজ কেনাকাটার অভিজ্ঞতার মাধ্যমে মানসম্মত ও বিশ্বস্ত পণ্য গ্রাহকের কাছে পৌঁছে দেওয়া। পণ্যের তথ্য, অর্ডার এবং ডেলিভারি সংক্রান্ত সহায়তার জন্য আমাদের সাপোর্টে যোগাযোগ করতে পারেন।
+          </p>
+        </div>
+      </section>
+
       {featuredProducts.length > 0 && (
         <section className="py-8 sm:py-10 max-w-6xl mx-auto px-4 sm:px-6">
           <SectionHeading icon={<Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />} title="নির্বাচিত পণ্য" subtitle="গ্রাহকদের জন্য বাছাই করা বিশেষ কালেকশন" />
