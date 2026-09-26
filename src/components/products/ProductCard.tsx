@@ -113,6 +113,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </span>
             )}
           </div>
+          {settings.stockQuantityVisible && product.stock > 0 && (
+            <div className="text-[10px] text-stone-500 mb-2">
+              স্টকে আছে: <span className="font-semibold text-stone-700">{product.stock} {product.unit || 'টি'}</span>
+            </div>
+          )}
         </div>
 
         {/* 3. Action Buttons Row (The main CTA visually dominates) */}
