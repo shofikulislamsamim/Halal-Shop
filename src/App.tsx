@@ -46,7 +46,9 @@ const AppContent: React.FC = () => {
 
     document.title = product
       ? `${product.nameBn} | ${settings.shopName}`
-      : (titles[currentView] || settings.seoTitle || settings.shopName);
+      : (currentView === 'home'
+        ? (settings.seoTitle || settings.shopName)
+        : (titles[currentView] || settings.seoTitle || settings.shopName));
 
     const description = product?.descriptionBn || settings.seoDescription || settings.heroSubtitle || 'বিশ্বস্ত হালাল পণ্যের অনলাইন শপ। সহজ অর্ডার ও ক্যাশ অন ডেলিভারি সুবিধা।';
     let meta = document.querySelector('meta[name="description"]');
