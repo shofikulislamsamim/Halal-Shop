@@ -628,7 +628,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('দুঃখিত, নির্বাচিত কোনো পণ্যের স্টক পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       }
       if (/store is currently closed/i.test(message)) {
-        throw new Error(settings.storeStatus === 'maintenance' ? (settings.maintenanceMessage || 'ওয়েবসাইট বর্তমানে রক্ষণাবেক্ষণে আছে।') : (settings.storeClosedMessage || 'বর্তমানে দোকান বন্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।'));
+        throw new Error((settings.storeStatus as WebsiteSettings['storeStatus']) === 'maintenance' ? (settings.maintenanceMessage || 'ওয়েবসাইট বর্তমানে রক্ষণাবেক্ষণে আছে।') : (settings.storeClosedMessage || 'বর্তমানে দোকান বন্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।'));
       }
       if (/cash on delivery is currently unavailable/i.test(message)) {
         throw new Error('বর্তমানে Cash on Delivery অর্ডার নেওয়া হচ্ছে না।');
@@ -1455,7 +1455,6 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       popularProductsCount: Math.max(0, Math.floor(Number(newSettings.popularProductsCount ?? settings.popularProductsCount ?? 8) || 0)),
       newArrivalProductsCount: Math.max(0, Math.floor(Number(newSettings.newArrivalProductsCount ?? settings.newArrivalProductsCount ?? 8) || 0)),
       bestSellerProductsCount: Math.max(0, Math.floor(Number(newSettings.bestSellerProductsCount ?? settings.bestSellerProductsCount ?? 8) || 0)),
-      cashOnDeliveryEnabled: true,
     };
 
     if (!nextSettings.shopName) {
