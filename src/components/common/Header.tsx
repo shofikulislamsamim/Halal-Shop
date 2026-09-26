@@ -102,11 +102,12 @@ export const Header: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 font-medium text-emerald-50">
               <Truck className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-              <span>সারাদেশে ক্যাশ অন ডেলিভারি</span>
+              <span>সারাদেশে {settings.cashOnDeliveryEnabled === false ? 'অনলাইন অর্ডার' : 'ক্যাশ অন ডেলিভারি'}</span>
             </span>
             <span className="hidden sm:inline text-emerald-600">|</span>
             <span className="hidden sm:inline text-emerald-200">
-              ৳ {settings.freeDeliveryThreshold} টাকার অর্ডারে ফ্রি ডেলিভারি
+              {settings.freeDeliveryThreshold > 0 ? `৳ ${settings.freeDeliveryThreshold} টাকার অর্ডারে ফ্রি ডেলিভারি` : 'ডেলিভারি চার্জ প্রযোজ্য'}
+              {settings.businessHours ? ` • ${settings.businessHours}` : ''}
             </span>
           </div>
 
