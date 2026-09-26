@@ -25,7 +25,7 @@ const STATUS_STEPS: { key: OrderStatus; label: string; desc: string }[] = [
 ];
 
 export const OrderTrackingView: React.FC = () => {
-  const { getOrdersByPhone, getOrderStatusHistory, lastCreatedOrder, settings } = useShop();
+  const { getOrdersByPhone, getOrderStatusHistory, cancelCustomerOrder, lastCreatedOrder, settings } = useShop();
 
   const [mobile, setMobile] = useState(lastCreatedOrder?.mobile || '');
   const [searchedOrders, setSearchedOrders] = useState<Order[]>(lastCreatedOrder ? [lastCreatedOrder] : []);
@@ -34,6 +34,7 @@ export const OrderTrackingView: React.FC = () => {
 
   const [isSearching, setIsSearching] = useState(false);
   const [statusHistory, setStatusHistory] = useState<OrderStatusHistoryEntry[]>([]);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +81,27 @@ export const OrderTrackingView: React.FC = () => {
     void getOrderStatusHistory(searchedOrder.id, searchedOrder.mobile).then(setStatusHistory);
   }, [searchedOrder?.id, searchedOrder?.mobile]);
   const isCancelled = searchedOrder?.status === 'cancelled';
+
+  const canCustomerCancel = Boolean(
+    searchedOrder && ['pending', 'confirmed'].includes(searchedOrder.status) &&
+    Number(settings.customerCancellationMinutes || 0) > 0 &&
+    Date.now() <= new Date(searchedOrder.createdAt).getTime() + Number(settings.customerCancellationMinutes || 0) * 60 * 1000
+  );
+
+  const handleCustomerCancel = async () => {
+    if (!searchedOrder || !canCustomerCancel || isCancelling) return;
+    const confirmed = window.confirm('আপনি কি এই অর্ডারটি বাতিল করতে চান? বাতিল করলে পণ্যের স্টক পুনরায় যোগ হবে।');
+    if (!confirmed) return;
+    setIsCancelling(true);
+    const success = await cancelCustomerOrder(searchedOrder.id, searchedOrder.mobile);
+    if (success) {
+      const cancelled = { ...searchedOrder, status: 'cancelled' as OrderStatus };
+      setSearchedOrder(cancelled);
+      setSearchedOrders((prev) => prev.map((order) => order.id === cancelled.id ? cancelled : order));
+      setStatusHistory(await getOrderStatusHistory(cancelled.id, cancelled.mobile));
+    }
+    setIsCancelling(false);
+  };
 
   const whatsAppUrl = searchedOrder
     ? getWhatsAppUrl(
@@ -331,6 +353,21 @@ export const OrderTrackingView: React.FC = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {canCustomerCancel && (
+            <div className="border-t border-stone-100 pt-6">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-rose-900">অর্ডার বাতিল করার সুযোগ</p>
+                  <p className="text-[11px] sm:text-xs text-rose-800/80 mt-0.5">অর্ডার করার পর নির্ধারিত সময়ের মধ্যে বাতিল করতে পারবেন।</p>
+                </div>
+                <button type="button" onClick={handleCustomerCancel} disabled={isCancelling} className="shrink-0 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1.5">
+                  <XCircle className="w-4 h-4" />
+                  {isCancelling ? 'বাতিল করা হচ্ছে...' : 'অর্ডার বাতিল করুন'}
+                </button>
               </div>
             </div>
           )}
