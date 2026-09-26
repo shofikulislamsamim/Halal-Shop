@@ -1405,6 +1405,8 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getOrderStatusHistory,
         refreshOrders,
         updateOrderStatus,
+        updateOrderAmount,
+        updateOrderDelivery,
 
         settings,
         updateSettings,
