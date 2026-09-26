@@ -27,7 +27,6 @@ export interface Category {
   id: string;
   nameBn: string;
   nameEn: string;
-  slug?: string;
   slug: string;
   parentId?: string | null; // self-referencing relationship: null for Root Category
   description?: string;
