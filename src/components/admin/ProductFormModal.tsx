@@ -27,7 +27,6 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
     stock: product.stock ?? 0,
     imageUrl: product.imageUrl || '',
     descriptionBn: product.descriptionBn || '',
-    specifications: product.specifications || [],
     isFeatured: product.isFeatured ?? false,
     isActive: product.isActive !== false,
     ...product,
@@ -40,7 +39,6 @@ export const ProductFormModal: React.FC<Props> = ({ product, categories, onClose
     seoKeywords: product.seoKeywords || [],
     lowStockThreshold: product.lowStockThreshold ?? 3,
     minOrderQty: product.minOrderQty ?? 1,
-    isActive: product.isActive !== false,
     whatsappEnabled: product.whatsappEnabled !== false,
   });
   const [tagInput, setTagInput] = useState((product.tags || []).join(', '));
