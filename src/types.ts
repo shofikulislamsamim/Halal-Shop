@@ -98,6 +98,8 @@ export interface ProductStockMovement {
   reason: string;
   note?: string;
   changedBy?: string;
+  variantId?: string;
+  variantName?: string;
   createdAt: string;
 }
 
