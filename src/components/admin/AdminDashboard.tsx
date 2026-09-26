@@ -1638,7 +1638,6 @@ export const AdminDashboard: React.FC = () => {
                 ['দোকানের নাম', 'shopName', 'text'],
                 ['ট্যাগলাইন', 'tagline', 'text'],
                 ['লোগো URL', 'logoUrl', 'url'],
-                ['Favicon URL', 'faviconUrl', 'url'],
                 ['ইমেইল', 'email', 'email'],
                 ['WhatsApp (8801XXXXXXXXX)', 'whatsappNumber', 'text'],
                 ['ফোন/হেল্পলাইন', 'contactNumber', 'text'],
@@ -1750,12 +1749,11 @@ export const AdminDashboard: React.FC = () => {
                 ['stockQuantityVisible', 'স্টক সংখ্যা দেখান'],
                 ['skuVisible', 'SKU দেখান'],
                 ['lowStockWarningVisible', 'Low-stock warning দেখান'],
-                ['productReviewsEnabled', 'Product reviews চালু'],
-                ['wishlistEnabled', 'Wishlist চালু'],
               ].map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={(settingsForm as any)[key] === true} onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.checked } as any)} className="w-4 h-4 accent-emerald-700" /> {label}</label>
               ))}
             </div>
+            <p className="text-[11px] text-stone-500">Reviews ও Wishlist এখনো storefront-এ চালু নেই, তাই এই প্যানেলে অপ্রয়োজনীয় control রাখা হয়নি।</p>
           </section>
 
           {/* Homepage */}
@@ -1804,9 +1802,15 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </section>
 
-          {/* SEO */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-black text-stone-900 border-b border-stone-100 pb-2">৮. SEO ও Analytics</h3>
+          {/* Advanced SEO */}
+          <details className="group border border-stone-200 rounded-2xl overflow-hidden">
+            <summary className="cursor-pointer list-none px-4 py-3 bg-stone-50 flex items-center justify-between gap-3">
+              <span className="text-sm font-black text-stone-900">৮. Advanced — SEO ও Analytics</span>
+              <span className="text-[11px] text-stone-500 group-open:hidden">প্রয়োজনে খুলুন</span>
+              <span className="text-[11px] text-stone-500 hidden group-open:inline">বন্ধ করুন</span>
+            </summary>
+            <section className="space-y-4 p-4 sm:p-5 border-t border-stone-200">
+              <p className="text-[11px] text-stone-500">এগুলো সাধারণ দোকান পরিচালনার জন্য প্রতিদিন প্রয়োজন হয় না। SEO, verification, analytics ও social-preview সংক্রান্ত পরিবর্তন প্রয়োজন হলে এখান থেকে করুন।</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input placeholder="SEO Title" value={settingsForm.seoTitle || ''} onChange={(e) => setSettingsForm({ ...settingsForm, seoTitle: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
               <input placeholder="Canonical URL" value={settingsForm.canonicalUrl || ''} onChange={(e) => setSettingsForm({ ...settingsForm, canonicalUrl: e.target.value })} className="text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
@@ -1818,7 +1822,8 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <textarea placeholder="SEO Description" value={settingsForm.seoDescription || ''} onChange={(e) => setSettingsForm({ ...settingsForm, seoDescription: e.target.value })} className="w-full min-h-20 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
             <input placeholder="SEO Keywords — comma separated" value={(settingsForm.seoKeywords || []).join(', ')} onChange={(e) => setSettingsForm({ ...settingsForm, seoKeywords: e.target.value.split(',').map(v => v.trim()).filter(Boolean) })} className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
-          </section>
+            </section>
+          </details>
 
           {/* Invoice + policy */}
           <section className="space-y-4">
@@ -1851,12 +1856,14 @@ export const AdminDashboard: React.FC = () => {
             <textarea placeholder="Maintenance message" value={settingsForm.maintenanceMessage || ''} onChange={(e) => setSettingsForm({ ...settingsForm, maintenanceMessage: e.target.value })} className="w-full min-h-16 text-xs px-3.5 py-2.5 rounded-xl border border-stone-300" />
           </section>
 
-          <button
-            type="submit"
-            className="sticky bottom-3 w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black py-3 px-7 rounded-xl text-sm transition-colors shadow-lg"
-          >
-            সব সেটিংস সংরক্ষণ করুন
-          </button>
+          <div className="sticky bottom-3 z-20 bg-white/95 backdrop-blur border-t border-stone-200 pt-3">
+            <button
+              type="submit"
+              className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black py-3 px-7 rounded-xl text-sm transition-colors shadow-lg"
+            >
+              সব সেটিংস সংরক্ষণ করুন
+            </button>
+          </div>
         </form>
       )}
 
