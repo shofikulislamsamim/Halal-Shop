@@ -626,6 +626,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (/insufficient stock|unavailable/i.test(message)) {
         throw new Error('দুঃখিত, নির্বাচিত কোনো পণ্যের স্টক পরিবর্তিত হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।');
       }
+      if (/store is currently closed/i.test(message)) {
+        throw new Error(settings.storeStatus === 'maintenance' ? (settings.maintenanceMessage || 'ওয়েবসাইট বর্তমানে রক্ষণাবেক্ষণে আছে।') : (settings.storeClosedMessage || 'বর্তমানে দোকান বন্ধ। অনুগ্রহ করে পরে আবার চেষ্টা করুন।'));
+      }
+      if (/cash on delivery is currently unavailable/i.test(message)) {
+        throw new Error('বর্তমানে Cash on Delivery অর্ডার নেওয়া হচ্ছে না।');
+      }
+      if (/Minimum order amount is/i.test(message)) {
+        throw new Error('ন্যূনতম অর্ডার মূল্য সেটিংস অনুযায়ী পূরণ হয়নি।');
+      }
+      if (/Cash on Delivery minimum order is/i.test(message)) {
+        throw new Error('Cash on Delivery-এর ন্যূনতম অর্ডার মূল্য পূরণ হয়নি।');
+      }
+      if (/Cash on Delivery maximum order is/i.test(message)) {
+        throw new Error('Cash on Delivery-এর সর্বোচ্চ অর্ডার সীমা অতিক্রম হয়েছে।');
+      }
       throw new Error('অর্ডার সংরক্ষণ করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।');
     }
   };
