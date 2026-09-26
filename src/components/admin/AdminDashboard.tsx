@@ -1360,8 +1360,15 @@ export const AdminDashboard: React.FC = () => {
               {inventorySearch && <button type="button" onClick={() => setInventorySearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 text-xs p-1" aria-label="স্টক সার্চ পরিষ্কার করুন">✕</button>}
             </div>
             <select value={inventoryFilter} onChange={(e) => setInventoryFilter(e.target.value as typeof inventoryFilter)} className="w-full sm:w-auto bg-stone-50 text-stone-800 text-xs px-3 py-2.5 rounded-xl border border-stone-300" aria-label="স্টক ফিল্টার">
-              <option value="all">সব স্টক</option><option value="out">স্টক শেষ</option><option value="low">কম স্টক (১–৩)</option><option value="in">পর্যাপ্ত স্টক (৪+)</option>
+              <option value="all">সব স্টক</option><option value="out">স্টক শেষ</option><option value="low">কম স্টক (নির্ধারিত সীমা অনুযায়ী)</option><option value="in">পর্যাপ্ত স্টক</option>
             </select>
+          </div>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {[
+              ['মোট পণ্য', products.length, 'text-stone-900'],
+              ['স্টক শেষ', products.filter(p => p.stock <= 0).length, 'text-rose-700'],
+              ['কম স্টক', products.filter(p => p.stock > 0 && p.stock <= Math.max(1, p.lowStockThreshold ?? 3)).length, 'text-amber-700'],
+            ].map(([label, value, cls]) => <div key={String(label)} className="bg-white rounded-2xl border border-stone-200 p-3"><div className="text-[10px] text-stone-500">{label}</div><div className={'text-lg sm:text-xl font-black ' + cls}>{value}</div></div>)}
           </div>
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-2xs">
             <div className="hidden md:block overflow-x-auto">
@@ -1370,14 +1377,16 @@ export const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y divide-stone-100">
                   {products.filter((prod) => {
                     const q = inventorySearch.trim().toLowerCase();
+                    const threshold = Math.max(1, prod.lowStockThreshold ?? 3);
                     if (q && !prod.nameBn.toLowerCase().includes(q) && !prod.nameEn.toLowerCase().includes(q)) return false;
                     if (inventoryFilter === 'out') return prod.stock <= 0;
-                    if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= 3;
-                    if (inventoryFilter === 'in') return prod.stock > 3;
+                    if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= threshold;
+                    if (inventoryFilter === 'in') return prod.stock > threshold;
                     return true;
                   }).map((prod) => {
-                    const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= 3 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
-                    const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= 3 ? 'কম স্টক' : 'পর্যাপ্ত';
+                    const threshold = Math.max(1, prod.lowStockThreshold ?? 3);
+                    const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= threshold ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                    const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= threshold ? `কম স্টক (≤${threshold})` : 'পর্যাপ্ত';
                     return <tr key={prod.id} className="hover:bg-stone-50/70">
                       <td className="p-3"><div className="flex items-center gap-2.5"><img src={prod.imageUrl} alt={prod.nameBn} className="w-10 h-10 rounded-lg object-cover bg-stone-100" /><div className="min-w-0"><div className="font-bold text-stone-900">{prod.nameBn}</div><div className="text-[11px] text-stone-400">{prod.nameEn || '—'}</div></div></div></td>
                       <td className="p-3 font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</td>
@@ -1392,13 +1401,15 @@ export const AdminDashboard: React.FC = () => {
               {products.filter((prod) => {
                 const q = inventorySearch.trim().toLowerCase();
                 if (q && !prod.nameBn.toLowerCase().includes(q) && !prod.nameEn.toLowerCase().includes(q)) return false;
+                const threshold = Math.max(1, prod.lowStockThreshold ?? 3);
                 if (inventoryFilter === 'out') return prod.stock <= 0;
-                if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= 3;
-                if (inventoryFilter === 'in') return prod.stock > 3;
+                if (inventoryFilter === 'low') return prod.stock > 0 && prod.stock <= threshold;
+                if (inventoryFilter === 'in') return prod.stock > threshold;
                 return true;
               }).map((prod) => {
-                const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= 3 ? 'কম স্টক' : 'পর্যাপ্ত';
-                const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= 3 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                const threshold = Math.max(1, prod.lowStockThreshold ?? 3);
+                const statusText = prod.stock <= 0 ? 'স্টক শেষ' : prod.stock <= threshold ? `কম স্টক (≤${threshold})` : 'পর্যাপ্ত';
+                const statusClass = prod.stock <= 0 ? 'bg-rose-50 text-rose-700 border-rose-200' : prod.stock <= threshold ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
                 return <div key={prod.id} className="p-3.5 space-y-3">
                   <div className="flex items-center gap-3"><img src={prod.imageUrl} alt={prod.nameBn} className="w-12 h-12 rounded-xl object-cover bg-stone-100 shrink-0" /><div className="min-w-0 flex-1"><div className="font-bold text-stone-900 truncate">{prod.nameBn}</div><div className="text-[11px] text-stone-400 truncate">{prod.nameEn || '—'}</div></div><span className={'shrink-0 px-2 py-1 rounded-lg border text-[10px] font-bold ' + statusClass}>{statusText}</span></div>
                   <div className="flex items-center justify-between gap-3"><div><div className="text-[10px] text-stone-500">বর্তমান স্টক</div><div className="font-black text-stone-900">{prod.stock} {prod.unit || 'টি'}</div></div><div className="flex items-center gap-1.5"><button type="button" disabled={prod.stock <= 0} onClick={() => void adjustProductStock(prod.id, -1)} className="w-9 h-9 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed font-bold" aria-label={prod.nameBn + ' থেকে ১ কমান'}>−</button><button type="button" onClick={() => void adjustProductStock(prod.id, 1)} className="w-9 h-9 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-bold" aria-label={prod.nameBn + ' ১ বাড়ান'}>+</button></div></div>
