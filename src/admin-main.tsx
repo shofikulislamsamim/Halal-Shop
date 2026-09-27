@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ShopProvider } from './context/ShopContext';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ToastContainer } from './components/common/Toast';
+import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 import './index.css';
 
 const root = document.getElementById('admin-root');
@@ -12,10 +13,12 @@ try {
 
   createRoot(root).render(
     <React.StrictMode>
-      <ShopProvider>
-        <AdminDashboard />
-        <ToastContainer />
-      </ShopProvider>
+      <AppErrorBoundary>
+        <ShopProvider>
+          <AdminDashboard />
+          <ToastContainer />
+        </ShopProvider>
+      </AppErrorBoundary>
     </React.StrictMode>,
   );
 
