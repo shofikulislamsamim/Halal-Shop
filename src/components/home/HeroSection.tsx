@@ -47,7 +47,7 @@ export const HeroSection: React.FC = () => {
             <div className="rounded-[2rem] border border-white/10 bg-white/[0.07] p-3 shadow-2xl shadow-black/20 backdrop-blur-sm">
               <div className="rounded-[1.5rem] bg-white p-6 sm:p-7 text-center text-stone-900">
                 <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border border-stone-100 bg-stone-50 shadow-sm">
-                  <img src={settings.heroImageUrl || settings.logoUrl || '/Halal-Shop/halal-shop-logo.jpg'} alt={settings.shopName} className="h-full w-full object-cover" />
+                  <img src={settings.heroImageUrl || settings.logoUrl || './halal-shop-logo.jpg'} alt={settings.shopName} className="h-full w-full object-cover" />
                 </div>
                 <h2 className="mt-4 text-xl font-black text-emerald-950">{settings.shopName}</h2>
                 <p className="mt-1 text-xs font-medium text-stone-500">{settings.tagline}</p>
