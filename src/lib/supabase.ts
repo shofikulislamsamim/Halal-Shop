@@ -165,11 +165,28 @@ export async function supabaseRefreshSession() {
 
 
 export async function supabaseIsAdmin(token: string): Promise<boolean> {
-  return supabaseFetch<boolean>('/rest/v1/rpc/halal_is_admin', {
-    method: 'POST',
-    body: {},
-    token,
-  });
+  // Prefer the authenticated admin_users row instead of depending solely on
+  // the halal_is_admin RPC. This keeps login/session restoration working even
+  // if an older database migration accidentally revoked RPC execution.
+  try {
+    const rows = await supabaseFetch<Array<{ id: string }>>(
+      '/rest/v1/admin_users?select=id&limit=1',
+      { method: 'GET', token }
+    );
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    // Backward-compatible fallback for databases where the admin_users policy
+    // is not yet deployed but the RPC is available.
+    try {
+      return await supabaseFetch<boolean>('/rest/v1/rpc/halal_is_admin', {
+        method: 'POST',
+        body: {},
+        token,
+      });
+    } catch {
+      return false;
+    }
+  }
 }
 
 export async function supabaseSignOut(token: string | null) {
