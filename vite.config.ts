@@ -5,10 +5,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    // This repository is deployed at /Halal-Shop/ on GitHub Pages.
-    // Use the project URL as Vite's public base so every generated
-    // JS/CSS/asset URL resolves from the deployed site root.
-    base: '/Halal-Shop/',
+    // Use relative asset URLs so the same build works reliably on
+    // GitHub Pages project paths and when the dist folder is previewed.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
