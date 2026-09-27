@@ -109,7 +109,7 @@ export const Header: React.FC = () => {
             aria-label={settings.shopName}
           >
             <img
-              src={settings.logoUrl || "/Halal-Shop/halal-shop-logo.jpg"}
+              src={settings.logoUrl || "./halal-shop-logo.jpg"}
               alt={settings.shopName}
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover bg-stone-50 border border-stone-200 shadow-xs group-hover:shadow-sm transition-shadow"
             />
