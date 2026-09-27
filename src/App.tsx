@@ -21,7 +21,7 @@ const AppContent: React.FC = () => {
   const { currentView, selectedProductId, products, settings } = useShop();
 
   useEffect(() => {
-    const faviconUrl = settings.faviconUrl?.trim() || settings.logoUrl?.trim() || '/Halal-Shop/halal-shop-logo.jpg';
+    const faviconUrl = settings.faviconUrl?.trim() || settings.logoUrl?.trim() || './halal-shop-logo.jpg';
     let favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
     if (!favicon) {
       favicon = document.createElement('link');
